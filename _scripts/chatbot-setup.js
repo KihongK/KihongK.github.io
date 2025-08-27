@@ -5,9 +5,12 @@ permalink: /assets/js/chatbot-setup.js
 // AI 자기소개 챗봇의 모든 기능을 담당
 
 // 전역 변수
-const API_BASE_URL = 'https://your-domain.duckdns.org:8000'; // 실제 도메인으로 변경 필요
+const API_BASE_URL = 'http://127.0.0.1:8888'; // 실제 도메인으로 변경 필요
+// const API_BASE_URL = 'http://kihongk.duckdns.org:9000'; // 실제 도메인으로 변경 필요
+
 let isTyping = false;
 let lastResponseTime = 0;
+let isConnected = false; // 연결 상태 추적
 
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', function() {
@@ -19,6 +22,12 @@ document.addEventListener('DOMContentLoaded', function() {
   loadChatHistory();
   setupInputHandlers();
   checkConnectionStatus();
+  
+  // 초기 연결 상태에 따른 UI 설정
+  if (!isConnected) {
+    setChatBlur(true);
+    enableChatInput(false);
+  }
   
   // 부트스트랩 툴팁 초기화
   if (typeof bootstrap !== 'undefined') {
@@ -78,6 +87,12 @@ async function sendMessage() {
   
   if (!message || isTyping) return;
   
+  // 연결 상태 확인 - 연결이 안 되면 메시지 전송 불가
+  if (!isConnected) {
+    displayMessage('현재 서버에 연결할 수 없습니다. 연결 상태를 확인해주세요.', 'error');
+    return;
+  }
+  
   // 사용자 메시지 표시
   displayMessage(message, 'user');
   userInput.value = '';
@@ -113,7 +128,7 @@ async function sendMessage() {
       return;
     }
     
-         const response = await fetch(`${API_BASE_URL}/chat`, {
+    const response = await fetch(`${API_BASE_URL}/v1/chat/`, {
        method: 'POST',
        headers: {
          'Content-Type': 'application/json',
@@ -432,16 +447,27 @@ function setConnectionStatus(connected) {
   const status = document.getElementById('connectionStatus');
   if (!status) return;
   
+  // 전역 연결 상태 업데이트
+  isConnected = connected;
+  
   if (connected) {
     status.innerHTML = '<i class="fas fa-circle me-1"></i>연결됨';
     status.className = 'badge rounded-pill';
     status.style.background = 'var(--global-tip-block)';
     status.style.color = 'white';
+    
+    // 연결됨: 채팅창 흐림 효과 제거
+    setChatBlur(false);
+    enableChatInput(true);
   } else {
     status.innerHTML = '<i class="fas fa-circle me-1"></i>연결 오류';
     status.className = 'badge rounded-pill offline';
     status.style.background = 'var(--global-danger-block)';
     status.style.color = 'white';
+    
+    // 연결 안됨: 채팅창 흐림 효과 적용
+    setChatBlur(true);
+    enableChatInput(false);
   }
 }
 
@@ -464,10 +490,58 @@ async function checkConnectionStatus() {
   }
   
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, { method: 'GET' });
+    const response = await fetch(`${API_BASE_URL}/v1/health/`, { method: 'GET' });
     setConnectionStatus(response.ok);
   } catch (error) {
     setConnectionStatus(false);
+  }
+}
+
+// 채팅창 흐림 효과 제어
+function setChatBlur(blur) {
+  const chatContainer = document.getElementById('chat-container');
+  const chatMessages = document.getElementById('chat-messages');
+  
+  if (chatContainer) {
+    if (blur) {
+      chatContainer.style.filter = 'blur(2px)';
+      chatContainer.style.opacity = '0.6';
+      chatContainer.style.pointerEvents = 'none';
+    } else {
+      chatContainer.style.filter = 'none';
+      chatContainer.style.opacity = '1';
+      chatContainer.style.pointerEvents = 'auto';
+    }
+  }
+  
+  if (chatMessages) {
+    if (blur) {
+      chatMessages.style.filter = 'blur(2px)';
+      chatMessages.style.opacity = '0.6';
+    } else {
+      chatMessages.style.filter = 'none';
+      chatMessages.style.opacity = '1';
+    }
+  }
+}
+
+// 채팅 입력 필드 활성화/비활성화
+function enableChatInput(enable) {
+  const userInput = document.getElementById('user-input');
+  const sendBtn = document.getElementById('sendBtn');
+  const charCount = document.getElementById('charCount');
+  
+  if (userInput) {
+    userInput.disabled = !enable;
+    userInput.placeholder = enable ? '메시지를 입력하세요...' : '서버 연결 오류로 메시지를 보낼 수 없습니다';
+  }
+  
+  if (sendBtn) {
+    sendBtn.disabled = !enable;
+  }
+  
+  if (charCount) {
+    charCount.style.color = enable ? 'var(--global-text-color-light)' : 'var(--global-danger-block)';
   }
 }
 
