@@ -5,8 +5,8 @@ permalink: /assets/js/chatbot-setup.js
 // AI 자기소개 챗봇의 모든 기능을 담당
 
 // 전역 변수
-const API_BASE_URL = 'http://127.0.0.1:8888'; // 실제 도메인으로 변경 필요
-// const API_BASE_URL = 'http://kihongk.duckdns.org:9000'; // 실제 도메인으로 변경 필요
+// const API_BASE_URL = 'http://127.0.0.1:8888'; // 실제 도메인으로 변경 필요
+const API_BASE_URL = 'http://kihongk.duckdns.org:9000'; // 실제 도메인으로 변경 필요
 
 let isTyping = false;
 let lastResponseTime = 0;
