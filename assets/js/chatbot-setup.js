@@ -4,7 +4,6 @@
 // 전역 변수
 // const API_BASE_URL = 'http://127.0.0.1:8888'; // 실제 도메인으로 변경 필요
 const API_BASE_URL = 'https://kihongk.duckdns.org:9000'; // 실제 도메인으로 변경 필요
-// const API_BASE_URL = 'https://b12b69e78c72.ngrok-free.app'; // 실제 도메인으로 변경 필요
 
 let isTyping = false;
 let lastResponseTime = 0;
@@ -543,5 +542,4 @@ function enableChatInput(enable) {
   }
 }
 
-// 주기적으로 연결 상태 확인 (옵션)
-setInterval(checkConnectionStatus, 30000); // 30초마다 체크
+setInterval(checkConnectionStatus, 30000);
