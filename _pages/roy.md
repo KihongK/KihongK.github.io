@@ -1,6 +1,6 @@
 ---
 layout: roy
-title: chatbot
+title: 자기소개 Chatbot
 permalink: /api-demo/
 description: 제 모든걸 알려드리죠
 nav: true

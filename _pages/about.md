@@ -2,16 +2,16 @@
 layout: about
 title: about
 permalink: /
-subtitle: <a href='#'>Affiliations</a>. Address. Contacts. Motto. Etc.
+subtitle: <a href='#'>간단한 자기 소개</a>.
 
 profile:
   align: right
-  image: prof_pic.jpg
-  image_circular: false # crops the image to make it circular
+  image: roy_id.jpg
+  image_circular: true # crops the image to make it circular
   more_info: >
-    <p>PH: 010-6483-5401</p>
-    <p>서울시 도봉구 쌍문동 거주</p>
-    <p>Your City, State 12345</p>
+    <p>📞: 010-6483-5401</p>
+    <p>📧: arh3125@gmail.com</p>
+    <p>🏠: 서울 거주</p>
 
 selected_papers: true # includes a list of papers marked as "selected={true}"
 social: true # includes social icons at the bottom of the page
@@ -27,8 +27,19 @@ latest_posts:
   limit: 3 # leave blank to include all the blog posts
 ---
 
-Write your biography here. Tell the world about yourself. Link to your favorite [subreddit](http://reddit.com). You can put a picture in, too. The code is already in, just name your picture `prof_pic.jpg` and put it in the `img/` folder.
+안녕하세요?  
+제 이름은 김기홍(Roy) 이라고 합니다.  
+현재 저는 AI 서비스를 개발하는 [알파코드 (AlphaCode)](https://alphacode.ai/en)에서 개발 매니저로 재직 중입니다.  
 
-Put your address / P.O. box / other info right below your picture. You can also disable any of these elements by editing `profile` property of the YAML header of your `_pages/about.md`. Edit `_bibliography/papers.bib` and Jekyll will render your [publications page](/al-folio/publications/) automatically.
+저희 회사는 개인과 기업이 직면한 다양한 문제를 AI 기술로 해결하는 서비스를 개발합니다.  
 
-Link to your social media connections, too. This theme is set up to use [Font Awesome icons](https://fontawesome.com/) and [Academicons](https://jpswalsh.github.io/academicons/), like the ones below. Add your Facebook, Twitter, LinkedIn, Google Scholar, or just disable all of them.
+회사에서 비디오/이미지 생성 모델 개발, 모바일 환경에서 실시간 객체 인식 시스템 구축, 모바일 및 임베디드 환경에서의 AI 모델 최적화 등의 업무를 담당해왔습니다.  
+
+특히 H100 GPU 8대를 활용한 대규모 모델 학습 및 고성능 추론 서버 구축 경험을 보유하고 있습니다.  
+  
+  
+현재 개인적으로 관심을 갖고 공부하고 있는 내용
+- 부족한 CS 지식
+- AI Agent 시스템 설계 (LangChain)
+- 그래픽스 파이프라인 (Metal, Vulkan, OpenGL)
+- ComfyUI 를 활용한 Virtual Try On 
