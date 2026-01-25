@@ -359,30 +359,30 @@ function clearChat() {
   if (confirm('대화를 모두 삭제하시겠습니까?')) {
     const messagesDiv = document.getElementById('messages');
     const suggestedQuestionsDiv = document.getElementById('suggestedQuestions');
-    
+    const timestamp = new Date().toLocaleTimeString();
+
     if (messagesDiv) {
       messagesDiv.innerHTML = `
-        <div class="message bot">
+        <div class="message bot message-enter">
           <div class="d-flex justify-content-start mb-4">
             <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background: var(--global-theme-color); color: white;">
               <i class="fas fa-robot"></i>
             </div>
             <div class="chat-message bot-message">
               <div class="message-content">
-                대화가 초기화되었습니다. 새로운 질문을 해주세요! 😊
+                대화가 초기화되었습니다. 새로운 질문을 해주세요!
               </div>
               <div class="message-time text-muted small mt-2">
-                <i class="fas fa-clock me-1"></i>
-                <script>document.write(new Date().toLocaleTimeString());</script>
+                <i class="fas fa-clock me-1"></i>${timestamp}
               </div>
             </div>
           </div>
         </div>
       `;
     }
-    
+
     localStorage.removeItem('chatHistory');
-    
+
     if (suggestedQuestionsDiv) {
       suggestedQuestionsDiv.style.display = 'none';
     }
@@ -533,7 +533,7 @@ function enableChatInput(enable) {
   
   if (userInput) {
     userInput.disabled = !enable;
-    userInput.placeholder = enable ? '메시지를 입력하세요...' : '서버 연결 오류로 메시지를 보낼 수 없습니다';
+    userInput.placeholder = enable ? '질문을 입력하세요...' : '서버 연결 오류로 메시지를 보낼 수 없습니다';
   }
   
   if (sendBtn) {
