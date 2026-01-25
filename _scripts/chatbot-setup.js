@@ -15,20 +15,26 @@ let isConnected = false; // 연결 상태 추적
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', function() {
   // 채팅봇 요소가 존재하는지 확인
-  if (!document.getElementById('chat-container')) {
+  if (!document.getElementById('chat-container') && !document.getElementById('welcome-screen')) {
     return; // 채팅봇이 없는 페이지에서는 실행하지 않음
   }
-  
-  loadChatHistory();
+
+  // 채팅 히스토리 로드 및 UI 설정
+  const hasHistory = loadChatHistory();
   setupInputHandlers();
   checkConnectionStatus();
-  
+
+  // 히스토리가 있으면 웰컴 스크린 숨기고 채팅 보여주기
+  if (hasHistory) {
+    showChatView();
+  }
+
   // 초기 연결 상태에 따른 UI 설정
   if (!isConnected) {
     setChatBlur(true);
     enableChatInput(false);
   }
-  
+
   // 부트스트랩 툴팁 초기화
   if (typeof bootstrap !== 'undefined') {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -36,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return new bootstrap.Tooltip(tooltipTriggerEl);
     });
   }
-  
+
   // 입력 필드에 포커스
   setTimeout(() => {
     const userInput = document.getElementById('user-input');
@@ -45,6 +51,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }, 500);
 });
+
+// 웰컴 스크린 숨기고 채팅 화면 표시
+function showChatView() {
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const chatContainer = document.getElementById('chat-container');
+
+  if (welcomeScreen) {
+    welcomeScreen.style.display = 'none';
+  }
+  if (chatContainer) {
+    chatContainer.style.display = 'block';
+  }
+}
+
+// 빠른 질문 클릭 핸들러
+function askQuestion(question) {
+  const userInput = document.getElementById('user-input');
+  if (userInput) {
+    userInput.value = question;
+    showChatView();
+    sendMessage();
+  }
+}
 
 // 입력 핸들러 설정
 function setupInputHandlers() {
@@ -207,61 +236,54 @@ function generateMockResponse(message) {
 function displayMessage(message, sender, questionType = null) {
   const messagesDiv = document.getElementById('messages');
   if (!messagesDiv) return;
-  
+
+  // 웰컴 스크린 숨기고 채팅 화면 표시
+  showChatView();
+
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${sender} message-enter`;
-  
+
   const timestamp = new Date().toLocaleTimeString();
-  
+
   if (sender === 'user') {
     messageDiv.innerHTML = `
-      <div class="d-flex justify-content-end mb-4">
+      <div class="d-flex justify-content-end mb-3">
         <div class="chat-message user-message">
           <div class="message-content">${escapeHtml(message)}</div>
-          <div class="message-time small mt-2" style="opacity: 0.8;">
-            <i class="fas fa-clock me-1"></i>${timestamp}
-          </div>
-        </div>
-        <div class="rounded-circle d-flex align-items-center justify-content-center ms-3" style="width: 35px; height: 35px; background: var(--global-text-color-light); color: white;">
-          <i class="fas fa-user"></i>
+          <div class="message-time">${timestamp}</div>
         </div>
       </div>
     `;
   } else if (sender === 'bot') {
     const typeIcon = getQuestionTypeIcon(questionType);
     messageDiv.innerHTML = `
-      <div class="d-flex justify-content-start mb-4">
-        <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background: var(--global-theme-color); color: white;">
+      <div class="d-flex justify-content-start align-items-start gap-2 mb-3">
+        <div class="message-avatar bot-avatar">
           <i class="fas fa-robot"></i>
         </div>
         <div class="chat-message bot-message">
-          ${typeIcon ? `<div class="small text-primary mb-2 fw-bold">${typeIcon}</div>` : ''}
+          ${typeIcon ? `<div class="message-type-badge">${typeIcon}</div>` : ''}
           <div class="message-content">${formatBotMessage(message)}</div>
-          <div class="message-time text-muted small mt-2">
-            <i class="fas fa-clock me-1"></i>${timestamp}
-          </div>
+          <div class="message-time">${timestamp}</div>
         </div>
       </div>
     `;
   } else if (sender === 'error') {
     messageDiv.innerHTML = `
-      <div class="d-flex justify-content-center mb-4">
+      <div class="d-flex justify-content-center mb-3">
         <div class="chat-message error-message">
           <div class="message-content">
             <i class="fas fa-exclamation-triangle me-2"></i>
             ${escapeHtml(message)}
           </div>
-          <div class="message-time small mt-2" style="opacity: 0.8;">
-            <i class="fas fa-clock me-1"></i>${timestamp}
-          </div>
         </div>
       </div>
     `;
   }
-  
+
   messagesDiv.appendChild(messageDiv);
   scrollToBottom();
-  
+
   // 대화 저장
   saveConversation(message, sender, questionType);
 }
@@ -271,17 +293,17 @@ function showTyping() {
   isTyping = true;
   const messagesDiv = document.getElementById('messages');
   if (!messagesDiv) return;
-  
+
   const typingDiv = document.createElement('div');
   typingDiv.id = 'typing-indicator';
   typingDiv.innerHTML = `
-    <div class="d-flex justify-content-start mb-4">
-      <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background: var(--global-theme-color); color: white;">
+    <div class="d-flex justify-content-start align-items-start gap-2 mb-3">
+      <div class="message-avatar bot-avatar">
         <i class="fas fa-robot"></i>
       </div>
       <div class="chat-message bot-message">
         <span class="typing-dots">
-          <span>•</span><span>•</span><span>•</span>
+          <span></span><span></span><span></span>
         </span>
       </div>
     </div>
@@ -348,43 +370,79 @@ function saveConversation(message, sender, questionType = null) {
 
 function loadChatHistory() {
   const conversations = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+  if (conversations.length === 0) {
+    return false;
+  }
+
   conversations.forEach(conv => {
-    if (conv.sender !== 'system') { // 시스템 메시지 제외
-      displayMessage(conv.message, conv.sender, conv.questionType);
+    if (conv.sender !== 'system') {
+      // displayMessage 호출 시 저장하지 않도록 임시로 비활성화
+      const messagesDiv = document.getElementById('messages');
+      if (!messagesDiv) return;
+
+      showChatView();
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${conv.sender}`;
+
+      const timestamp = conv.timestamp ? new Date(conv.timestamp).toLocaleTimeString() : '';
+
+      if (conv.sender === 'user') {
+        messageDiv.innerHTML = `
+          <div class="d-flex justify-content-end mb-3">
+            <div class="chat-message user-message">
+              <div class="message-content">${escapeHtml(conv.message)}</div>
+              ${timestamp ? `<div class="message-time">${timestamp}</div>` : ''}
+            </div>
+          </div>
+        `;
+      } else if (conv.sender === 'bot') {
+        const typeIcon = getQuestionTypeIcon(conv.questionType);
+        messageDiv.innerHTML = `
+          <div class="d-flex justify-content-start align-items-start gap-2 mb-3">
+            <div class="message-avatar bot-avatar">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div class="chat-message bot-message">
+              ${typeIcon ? `<div class="message-type-badge">${typeIcon}</div>` : ''}
+              <div class="message-content">${formatBotMessage(conv.message)}</div>
+              ${timestamp ? `<div class="message-time">${timestamp}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      messagesDiv.appendChild(messageDiv);
     }
   });
+
+  scrollToBottom();
+  return true;
 }
 
 function clearChat() {
   if (confirm('대화를 모두 삭제하시겠습니까?')) {
     const messagesDiv = document.getElementById('messages');
     const suggestedQuestionsDiv = document.getElementById('suggestedQuestions');
-    const timestamp = new Date().toLocaleTimeString();
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const chatContainer = document.getElementById('chat-container');
 
     if (messagesDiv) {
-      messagesDiv.innerHTML = `
-        <div class="message bot message-enter">
-          <div class="d-flex justify-content-start mb-4">
-            <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background: var(--global-theme-color); color: white;">
-              <i class="fas fa-robot"></i>
-            </div>
-            <div class="chat-message bot-message">
-              <div class="message-content">
-                대화가 초기화되었습니다. 새로운 질문을 해주세요!
-              </div>
-              <div class="message-time text-muted small mt-2">
-                <i class="fas fa-clock me-1"></i>${timestamp}
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
+      messagesDiv.innerHTML = '';
     }
 
     localStorage.removeItem('chatHistory');
 
     if (suggestedQuestionsDiv) {
       suggestedQuestionsDiv.style.display = 'none';
+    }
+
+    // 웰컴 스크린 다시 표시
+    if (welcomeScreen) {
+      welcomeScreen.style.display = 'flex';
+    }
+    if (chatContainer) {
+      chatContainer.style.display = 'none';
     }
   }
 }
@@ -446,25 +504,21 @@ function getQuestionTypeIcon(questionType) {
 function setConnectionStatus(connected) {
   const status = document.getElementById('connectionStatus');
   if (!status) return;
-  
+
   // 전역 연결 상태 업데이트
   isConnected = connected;
-  
+
   if (connected) {
-    status.innerHTML = '<i class="fas fa-circle me-1"></i>연결됨';
-    status.className = 'badge rounded-pill';
-    status.style.background = 'var(--global-tip-block)';
-    status.style.color = 'white';
-    
+    status.innerHTML = '<i class="fas fa-circle"></i><span>연결됨</span>';
+    status.className = 'connection-badge';
+
     // 연결됨: 채팅창 흐림 효과 제거
     setChatBlur(false);
     enableChatInput(true);
   } else {
-    status.innerHTML = '<i class="fas fa-circle me-1"></i>연결 오류';
-    status.className = 'badge rounded-pill offline';
-    status.style.background = 'var(--global-danger-block)';
-    status.style.color = 'white';
-    
+    status.innerHTML = '<i class="fas fa-circle"></i><span>연결 오류</span>';
+    status.className = 'connection-badge offline';
+
     // 연결 안됨: 채팅창 흐림 효과 적용
     setChatBlur(true);
     enableChatInput(false);
@@ -500,29 +554,22 @@ async function checkConnectionStatus() {
 // 채팅창 흐림 효과 제어
 function setChatBlur(blur) {
   const chatContainer = document.getElementById('chat-container');
-  const chatMessages = document.getElementById('chat-messages');
-  
-  if (chatContainer) {
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const chatbotMain = document.querySelector('.chatbot-main');
+
+  const targets = [chatContainer, welcomeScreen, chatbotMain].filter(Boolean);
+
+  targets.forEach(el => {
     if (blur) {
-      chatContainer.style.filter = 'blur(2px)';
-      chatContainer.style.opacity = '0.6';
-      chatContainer.style.pointerEvents = 'none';
+      el.style.filter = 'blur(2px)';
+      el.style.opacity = '0.6';
+      el.style.pointerEvents = 'none';
     } else {
-      chatContainer.style.filter = 'none';
-      chatContainer.style.opacity = '1';
-      chatContainer.style.pointerEvents = 'auto';
+      el.style.filter = 'none';
+      el.style.opacity = '1';
+      el.style.pointerEvents = 'auto';
     }
-  }
-  
-  if (chatMessages) {
-    if (blur) {
-      chatMessages.style.filter = 'blur(2px)';
-      chatMessages.style.opacity = '0.6';
-    } else {
-      chatMessages.style.filter = 'none';
-      chatMessages.style.opacity = '1';
-    }
-  }
+  });
 }
 
 // 채팅 입력 필드 활성화/비활성화
@@ -530,18 +577,23 @@ function enableChatInput(enable) {
   const userInput = document.getElementById('user-input');
   const sendBtn = document.getElementById('sendBtn');
   const charCount = document.getElementById('charCount');
-  
+  const inputContainer = document.querySelector('.chatbot-input-container');
+
   if (userInput) {
     userInput.disabled = !enable;
-    userInput.placeholder = enable ? '질문을 입력하세요...' : '서버 연결 오류로 메시지를 보낼 수 없습니다';
+    userInput.placeholder = enable ? '메시지를 입력하세요...' : '서버 연결 오류로 메시지를 보낼 수 없습니다';
   }
-  
+
   if (sendBtn) {
     sendBtn.disabled = !enable;
   }
-  
+
   if (charCount) {
-    charCount.style.color = enable ? 'var(--global-text-color-light)' : 'var(--global-danger-block)';
+    charCount.style.color = enable ? '' : '#ff6b6b';
+  }
+
+  if (inputContainer) {
+    inputContainer.style.opacity = enable ? '1' : '0.5';
   }
 }
 
