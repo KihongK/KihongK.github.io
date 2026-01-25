@@ -6,7 +6,7 @@ permalink: /assets/js/chatbot-setup.js
 
 // 전역 변수
 // const API_BASE_URL = 'http://127.0.0.1:8888'; // 실제 도메인으로 변경 필요
-const API_BASE_URL = 'https://kihongk.duckdns.org:9000'; // 실제 도메인으로 변경 필요
+const API_BASE_URL = 'https://reflect-clerk-yang-lakes.trycloudflare.com'; // Cloudflare Tunnel URL
 
 let isTyping = false;
 let lastResponseTime = 0;
