@@ -3,7 +3,7 @@
 
 // 전역 변수
 // const API_BASE_URL = 'http://127.0.0.1:8888'; // 실제 도메인으로 변경 필요
-const API_BASE_URL = 'https://derby-austin-pillow-improved.trycloudflare.com'; // Cloudflare Tunnel URL
+const API_BASE_URL = 'https://api.kim-ki-hong.com'; // Cloudflare Tunnel with custom domain
 
 let isTyping = false;
 let lastResponseTime = 0;
