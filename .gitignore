@@ -12,3 +12,5 @@ node_modules/
 vendor
 .idea
 README_MY.md
+.claude/
+nul
