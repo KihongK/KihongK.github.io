@@ -11,6 +11,7 @@ let isTyping = false;
 let lastResponseTime = 0;
 let isConnected = false;
 let messageStartTime = 0;
+let humanJoinNotified = false;
 
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', function() {
@@ -99,9 +100,12 @@ function initSocketConnection() {
       handleTypingStatus(data);
     });
 
-    // 담당자 참여 알림
+    // 담당자 참여 알림 (한 번만 표시)
     socket.on('chat:human_join', () => {
-      displaySystemMessage('담당자가 대화에 참여했습니다', 'human_join');
+      if (!humanJoinNotified) {
+        humanJoinNotified = true;
+        displaySystemMessage('담당자가 대화에 참여했습니다', 'human_join');
+      }
     });
 
   } catch (error) {
@@ -514,6 +518,7 @@ function clearChat() {
     }
 
     localStorage.removeItem('chatHistory');
+    humanJoinNotified = false;
 
     if (suggestedQuestionsDiv) {
       suggestedQuestionsDiv.style.display = 'none';
