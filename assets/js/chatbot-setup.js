@@ -12,6 +12,7 @@ let lastResponseTime = 0;
 let isConnected = false;
 let messageStartTime = 0;
 let humanJoinNotified = false;
+let visitorInfo = null;
 
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', function() {
@@ -19,13 +20,19 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
 
+  // 방문자 정보 로드
+  loadVisitorInfo();
+
   const hasHistory = loadChatHistory();
   setupInputHandlers();
 
   // Socket.IO 연결 시도
   initSocketConnection();
 
-  if (hasHistory) {
+  // 방문자 정보가 없고 채팅 기록도 없으면 정보 입력 폼 표시
+  if (!visitorInfo && !hasHistory) {
+    showUserInfoForm();
+  } else if (hasHistory) {
     showChatView();
   }
 
@@ -168,15 +175,104 @@ function displaySystemMessage(message, type) {
 
 // 웰컴 스크린 숨기고 채팅 화면 표시
 function showChatView() {
+  const userInfoForm = document.getElementById('user-info-form');
   const welcomeScreen = document.getElementById('welcome-screen');
   const chatContainer = document.getElementById('chat-container');
 
+  if (userInfoForm) {
+    userInfoForm.style.display = 'none';
+  }
   if (welcomeScreen) {
     welcomeScreen.style.display = 'none';
   }
   if (chatContainer) {
     chatContainer.style.display = 'block';
   }
+}
+
+// 방문자 정보 폼 표시
+function showUserInfoForm() {
+  const userInfoForm = document.getElementById('user-info-form');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const chatContainer = document.getElementById('chat-container');
+
+  if (userInfoForm) {
+    userInfoForm.style.display = 'flex';
+  }
+  if (welcomeScreen) {
+    welcomeScreen.style.display = 'none';
+  }
+  if (chatContainer) {
+    chatContainer.style.display = 'none';
+  }
+}
+
+// 웰컴 스크린 표시 (정보 입력 후)
+function showWelcomeScreen() {
+  const userInfoForm = document.getElementById('user-info-form');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const chatContainer = document.getElementById('chat-container');
+
+  if (userInfoForm) {
+    userInfoForm.style.display = 'none';
+  }
+  if (welcomeScreen) {
+    welcomeScreen.style.display = 'flex';
+  }
+  if (chatContainer) {
+    chatContainer.style.display = 'none';
+  }
+}
+
+// 방문자 정보 로드
+function loadVisitorInfo() {
+  const saved = localStorage.getItem('visitorInfo');
+  if (saved) {
+    visitorInfo = JSON.parse(saved);
+  }
+}
+
+// 방문자 정보 저장
+function saveVisitorInfo(name, company) {
+  visitorInfo = {
+    name: name || '',
+    company: company || '',
+    timestamp: new Date().toISOString()
+  };
+  localStorage.setItem('visitorInfo', JSON.stringify(visitorInfo));
+}
+
+// 방문자 정보 제출
+function submitUserInfo() {
+  const nameInput = document.getElementById('visitor-name');
+  const companyInput = document.getElementById('visitor-company');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const company = companyInput ? companyInput.value.trim() : '';
+
+  saveVisitorInfo(name, company);
+  showWelcomeScreen();
+
+  // 포커스를 입력창으로 이동
+  setTimeout(() => {
+    const userInput = document.getElementById('user-input');
+    if (userInput) {
+      userInput.focus();
+    }
+  }, 300);
+}
+
+// 방문자 정보 건너뛰기
+function skipUserInfo() {
+  saveVisitorInfo('', '');
+  showWelcomeScreen();
+
+  setTimeout(() => {
+    const userInput = document.getElementById('user-input');
+    if (userInput) {
+      userInput.focus();
+    }
+  }, 300);
 }
 
 // 빠른 질문 클릭 핸들러
@@ -242,7 +338,12 @@ async function sendMessage() {
 
   // Socket.IO 연결이 있으면 소켓으로 전송
   if (isSocketConnected && socket) {
-    socket.emit('chat:message', { message: message });
+    const payload = { message: message };
+    if (visitorInfo) {
+      payload.visitor_name = visitorInfo.name || '';
+      payload.visitor_company = visitorInfo.company || '';
+    }
+    socket.emit('chat:message', payload);
     // 타이핑 인디케이터는 서버에서 chat:typing 이벤트로 제어
   } else {
     // REST API 폴백
@@ -255,12 +356,18 @@ async function sendMessageREST(message) {
   showTyping();
 
   try {
+    const payload = { message: message };
+    if (visitorInfo) {
+      payload.visitor_name = visitorInfo.name || '';
+      payload.visitor_company = visitorInfo.company || '';
+    }
+
     const response = await fetch(`${API_BASE_URL}/v1/chat/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ message: message })
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
