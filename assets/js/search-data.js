@@ -14,7 +14,7 @@ ninja.data = [{
           description: "제 모든걸 알려드리죠",
           section: "Navigation",
           handler: () => {
-            window.location.href = "/api-demo/";
+            window.location.href = "/ask-me/";
           },
         },{
         id: 'social-email',
