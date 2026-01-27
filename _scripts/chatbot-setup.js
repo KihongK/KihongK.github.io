@@ -3,33 +3,34 @@ permalink: /assets/js/chatbot-setup.js
 ---
 // 채팅봇 전용 스크립트 파일
 // AI 자기소개 챗봇의 모든 기능을 담당
+// Socket.IO 실시간 통신 + REST API 폴백 지원
 
 // 전역 변수
-// const API_BASE_URL = 'http://127.0.0.1:8888'; // 실제 도메인으로 변경 필요
-const API_BASE_URL = 'https://api.kim-ki-hong.com'; // Cloudflare Tunnel with custom domain
+const API_BASE_URL = 'https://api.kim-ki-hong.com';
 
+let socket = null;
+let isSocketConnected = false;
 let isTyping = false;
 let lastResponseTime = 0;
-let isConnected = false; // 연결 상태 추적
+let isConnected = false;
+let messageStartTime = 0;
 
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', function() {
-  // 채팅봇 요소가 존재하는지 확인
   if (!document.getElementById('chat-container') && !document.getElementById('welcome-screen')) {
-    return; // 채팅봇이 없는 페이지에서는 실행하지 않음
+    return;
   }
 
-  // 채팅 히스토리 로드 및 UI 설정
   const hasHistory = loadChatHistory();
   setupInputHandlers();
-  checkConnectionStatus();
 
-  // 히스토리가 있으면 웰컴 스크린 숨기고 채팅 보여주기
+  // Socket.IO 연결 시도
+  initSocketConnection();
+
   if (hasHistory) {
     showChatView();
   }
 
-  // 초기 연결 상태에 따른 UI 설정
   if (!isConnected) {
     setChatBlur(true);
     enableChatInput(false);
@@ -38,12 +39,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // 부트스트랩 툴팁 초기화
   if (typeof bootstrap !== 'undefined') {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
       return new bootstrap.Tooltip(tooltipTriggerEl);
     });
   }
 
-  // 입력 필드에 포커스
   setTimeout(() => {
     const userInput = document.getElementById('user-input');
     if (userInput) {
@@ -51,6 +51,119 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }, 500);
 });
+
+// Socket.IO 연결 초기화
+function initSocketConnection() {
+  if (typeof io === 'undefined') {
+    console.warn('Socket.IO not loaded, falling back to REST API');
+    checkConnectionStatusREST();
+    return;
+  }
+
+  try {
+    socket = io(API_BASE_URL, {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000
+    });
+
+    // 연결 성공
+    socket.on('connect', () => {
+      console.log('Socket.IO connected');
+      isSocketConnected = true;
+      setConnectionStatus(true, 'socket');
+    });
+
+    // 연결 해제
+    socket.on('disconnect', (reason) => {
+      console.log('Socket.IO disconnected:', reason);
+      isSocketConnected = false;
+      setConnectionStatus(false);
+    });
+
+    // 연결 오류
+    socket.on('connect_error', (error) => {
+      console.error('Socket.IO connection error:', error);
+      isSocketConnected = false;
+      // REST API로 폴백
+      checkConnectionStatusREST();
+    });
+
+    // 응답 수신
+    socket.on('chat:response', (data) => {
+      handleChatResponse(data);
+    });
+
+    // 타이핑 상태 수신
+    socket.on('chat:typing', (data) => {
+      handleTypingStatus(data);
+    });
+
+    // 담당자 참여 알림
+    socket.on('chat:human_join', () => {
+      displaySystemMessage('담당자가 대화에 참여했습니다', 'human_join');
+    });
+
+  } catch (error) {
+    console.error('Socket.IO initialization failed:', error);
+    checkConnectionStatusREST();
+  }
+}
+
+// 응답 처리
+function handleChatResponse(data) {
+  hideTyping();
+
+  const { response, source, timestamp } = data;
+  const sender = source === 'human' ? 'human' : 'bot';
+
+  displayMessage(response, sender);
+
+  if (messageStartTime > 0) {
+    lastResponseTime = Date.now() - messageStartTime;
+    updateResponseTime();
+    messageStartTime = 0;
+  }
+
+  setLoadingState(false);
+}
+
+// 타이핑 상태 처리
+function handleTypingStatus(data) {
+  if (data.is_typing) {
+    showTyping();
+  } else {
+    hideTyping();
+  }
+}
+
+// 시스템 메시지 표시 (담당자 참여 등)
+function displaySystemMessage(message, type) {
+  const messagesDiv = document.getElementById('messages');
+  if (!messagesDiv) return;
+
+  showChatView();
+
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message system message-enter';
+
+  if (type === 'human_join') {
+    messageDiv.innerHTML = `
+      <div class="d-flex justify-content-center mb-3">
+        <div class="system-notification human-join-notification">
+          <i class="fas fa-user-check me-2"></i>
+          ${escapeHtml(message)}
+        </div>
+      </div>
+    `;
+  }
+
+  messagesDiv.appendChild(messageDiv);
+  scrollToBottom();
+}
 
 // 웰컴 스크린 숨기고 채팅 화면 표시
 function showChatView() {
@@ -80,17 +193,15 @@ function setupInputHandlers() {
   const userInput = document.getElementById('user-input');
   const charCount = document.getElementById('charCount');
   const sendBtn = document.getElementById('sendBtn');
-  
+
   if (!userInput || !charCount || !sendBtn) return;
-  
+
   userInput.addEventListener('input', function() {
     const length = this.value.length;
     charCount.textContent = length;
-    
-    // 전송 버튼 활성화/비활성화
+
     sendBtn.disabled = length === 0 || isTyping;
-    
-    // 문자 수 색상 변경
+
     if (length > 450) {
       charCount.style.color = 'var(--global-danger-block)';
     } else if (length > 400) {
@@ -113,78 +224,61 @@ function handleKeyPress(event) {
 async function sendMessage() {
   const userInput = document.getElementById('user-input');
   const message = userInput.value.trim();
-  
+
   if (!message || isTyping) return;
-  
-  // 연결 상태 확인 - 연결이 안 되면 메시지 전송 불가
+
   if (!isConnected) {
     displayMessage('현재 서버에 연결할 수 없습니다. 연결 상태를 확인해주세요.', 'error');
     return;
   }
-  
-  // 사용자 메시지 표시
+
   displayMessage(message, 'user');
   userInput.value = '';
   document.getElementById('charCount').textContent = '0';
-  
-  // 전송 버튼 비활성화 및 로딩 표시
+
   setLoadingState(true);
-  
-  // 타이핑 인디케이터 표시
+  messageStartTime = Date.now();
+
+  // Socket.IO 연결이 있으면 소켓으로 전송
+  if (isSocketConnected && socket) {
+    socket.emit('chat:message', { message: message });
+    // 타이핑 인디케이터는 서버에서 chat:typing 이벤트로 제어
+  } else {
+    // REST API 폴백
+    await sendMessageREST(message);
+  }
+}
+
+// REST API로 메시지 전송 (폴백)
+async function sendMessageREST(message) {
   showTyping();
-  
-  const startTime = Date.now();
-  
+
   try {
-    // API 서버가 없을 때를 위한 임시 응답 생성
-    if (API_BASE_URL === 'https://your-domain.duckdns.org:8000') {
-      // 임시 응답 생성 (테스트용)
-      setTimeout(() => {
-        hideTyping();
-        const mockResponse = generateMockResponse(message);
-        displayMessage(mockResponse.response, 'bot', mockResponse.question_type);
-        
-        if (mockResponse.suggested_questions) {
-          showSuggestedQuestions(mockResponse.suggested_questions);
-        }
-        
-        lastResponseTime = Date.now() - startTime;
-        updateResponseTime();
-        setConnectionStatus(true);
-        setLoadingState(false);
-      }, 1500); // 1.5초 후 응답
-      
-      return;
-    }
-    
     const response = await fetch(`${API_BASE_URL}/v1/chat/`, {
-       method: 'POST',
-       headers: {
-         'Content-Type': 'application/json',
-       },
-       body: JSON.stringify({ 
-         message: message
-       })
-     });
-    
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message: message })
+    });
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
-    lastResponseTime = Date.now() - startTime;
-    
+    lastResponseTime = Date.now() - messageStartTime;
+
     hideTyping();
     displayMessage(data.response, 'bot', data.question_type);
-    
-    // 후속 질문 제안 표시
+
     if (data.suggested_questions) {
       showSuggestedQuestions(data.suggested_questions);
     }
-    
+
     updateResponseTime();
-    setConnectionStatus(true);
-    
+    setConnectionStatus(true, 'rest');
+
   } catch (error) {
     console.error('API 요청 실패:', error);
     hideTyping();
@@ -192,43 +286,7 @@ async function sendMessage() {
     setConnectionStatus(false);
   } finally {
     setLoadingState(false);
-  }
-}
-
-// 임시 응답 생성 함수 (테스트용)
-function generateMockResponse(message) {
-  const responses = {
-    '프로젝트': {
-      response: '안녕하세요! 프로젝트에 대해 질문해주셨네요. 저는 다양한 웹 개발 프로젝트를 진행해왔습니다. 주요 프로젝트로는:\n\n• **포트폴리오 웹사이트**: React와 Node.js를 활용한 개인 포트폴리오\n• **쇼핑몰 플랫폼**: 풀스택 개발 경험을 쌓은 이커머스 사이트\n• **데이터 시각화 대시보드**: Chart.js와 D3.js를 활용한 인터랙티브 차트\n\n어떤 프로젝트에 대해 더 자세히 알고 싶으신가요?',
-      question_type: 'project',
-      suggested_questions: ['기술 스택은 무엇인가요?', '프로젝트 규모는 어느 정도인가요?', '어떤 문제를 해결했나요?']
-    },
-    '기술': {
-      response: '기술 스택에 대해 질문해주셨네요! 제 주요 기술 스택은 다음과 같습니다:\n\n**프론트엔드**:\n• React, Vue.js, HTML5, CSS3, JavaScript/TypeScript\n• Bootstrap, Tailwind CSS, SASS\n\n**백엔드**:\n• Node.js, Python, Java\n• Express.js, Django, Spring Boot\n\n**데이터베이스**:\n• MySQL, PostgreSQL, MongoDB\n\n**기타**:\n• Git, Docker, AWS, CI/CD\n\n특정 기술에 대해 더 자세히 알고 싶으신가요?',
-      question_type: 'technical',
-      suggested_questions: ['가장 자신 있는 기술은?', '새로운 기술을 어떻게 학습하나요?', '프로젝트에서 기술 선택 기준은?']
-    },
-    '강점': {
-      response: '개발자로서의 강점에 대해 질문해주셨네요! 제 주요 강점은 다음과 같습니다:\n\n**1. 문제 해결 능력**\n• 복잡한 요구사항을 체계적으로 분석하고 해결\n• 디버깅과 트러블슈팅에 대한 경험과 인내심\n\n**2. 학습 능력**\n• 새로운 기술을 빠르게 습득하고 적용\n• 지속적인 자기계발과 기술 트렌드 파악\n\n**3. 협업 능력**\n• 팀 프로젝트에서 원활한 소통과 협력\n• 코드 리뷰와 지식 공유를 통한 성장\n\n**4. 사용자 중심 사고**\n• UX/UI를 고려한 개발 접근\n• 사용자 피드백을 반영한 개선\n\n어떤 부분에 대해 더 자세히 알고 싶으신가요?',
-      question_type: 'personal',
-      suggested_questions: ['팀워크 경험은?', '스트레스 관리는 어떻게?', '장기적인 목표는?']
-    }
-  };
-  
-  // 메시지 내용에 따라 적절한 응답 선택
-  if (message.includes('프로젝트') || message.includes('작업') || message.includes('개발')) {
-    return responses['프로젝트'];
-  } else if (message.includes('기술') || message.includes('스택') || message.includes('언어')) {
-    return responses['기술'];
-  } else if (message.includes('강점') || message.includes('장점') || message.includes('특징')) {
-    return responses['강점'];
-  } else {
-    // 기본 응답
-    return {
-      response: '좋은 질문이네요! 제가 도움을 드릴 수 있는 부분이 있다면 언제든 말씀해주세요. 프로젝트 경험이나 기술 스택, 개인적인 강점 등에 대해 궁금한 것이 있으시면 구체적으로 질문해주시면 더 자세히 답변드릴 수 있습니다.',
-      question_type: 'general',
-      suggested_questions: ['프로젝트 경험을 들려주세요', '기술 스택은 무엇인가요?', '개발자로서의 강점은?']
-    };
+    messageStartTime = 0;
   }
 }
 
@@ -237,7 +295,6 @@ function displayMessage(message, sender, questionType = null) {
   const messagesDiv = document.getElementById('messages');
   if (!messagesDiv) return;
 
-  // 웰컴 스크린 숨기고 채팅 화면 표시
   showChatView();
 
   const messageDiv = document.createElement('div');
@@ -268,6 +325,22 @@ function displayMessage(message, sender, questionType = null) {
         </div>
       </div>
     `;
+  } else if (sender === 'human') {
+    // 담당자(개발자) 응답 - 다른 스타일
+    messageDiv.innerHTML = `
+      <div class="d-flex justify-content-start align-items-start gap-2 mb-3">
+        <div class="message-avatar human-avatar">
+          <i class="fas fa-user-tie"></i>
+        </div>
+        <div class="chat-message human-message">
+          <div class="message-source-badge">
+            <i class="fas fa-headset me-1"></i>담당자
+          </div>
+          <div class="message-content">${formatBotMessage(message)}</div>
+          <div class="message-time">${timestamp}</div>
+        </div>
+      </div>
+    `;
   } else if (sender === 'error') {
     messageDiv.innerHTML = `
       <div class="d-flex justify-content-center mb-3">
@@ -284,12 +357,13 @@ function displayMessage(message, sender, questionType = null) {
   messagesDiv.appendChild(messageDiv);
   scrollToBottom();
 
-  // 대화 저장
   saveConversation(message, sender, questionType);
 }
 
 // 타이핑 인디케이터 표시
 function showTyping() {
+  if (isTyping) return; // 이미 표시 중이면 무시
+
   isTyping = true;
   const messagesDiv = document.getElementById('messages');
   if (!messagesDiv) return;
@@ -325,11 +399,11 @@ function hideTyping() {
 function showSuggestedQuestions(questions) {
   const suggestionsContainer = document.getElementById('questionSuggestions');
   const suggestedQuestionsDiv = document.getElementById('suggestedQuestions');
-  
+
   if (!suggestionsContainer || !suggestedQuestionsDiv) return;
-  
+
   suggestionsContainer.innerHTML = '';
-  
+
   questions.forEach(question => {
     const btn = document.createElement('button');
     btn.className = 'btn suggestion-btn';
@@ -344,11 +418,9 @@ function showSuggestedQuestions(questions) {
     };
     suggestionsContainer.appendChild(btn);
   });
-  
+
   suggestedQuestionsDiv.style.display = 'block';
 }
-
-
 
 // 대화 히스토리 관련 함수들
 function saveConversation(message, sender, questionType = null) {
@@ -359,12 +431,11 @@ function saveConversation(message, sender, questionType = null) {
     questionType: questionType,
     timestamp: new Date().toISOString()
   });
-  
-  // 최대 100개 메시지만 저장
+
   if (conversations.length > 100) {
     conversations = conversations.slice(-100);
   }
-  
+
   localStorage.setItem('chatHistory', JSON.stringify(conversations));
 }
 
@@ -376,7 +447,6 @@ function loadChatHistory() {
 
   conversations.forEach(conv => {
     if (conv.sender !== 'system') {
-      // displayMessage 호출 시 저장하지 않도록 임시로 비활성화
       const messagesDiv = document.getElementById('messages');
       if (!messagesDiv) return;
 
@@ -410,6 +480,21 @@ function loadChatHistory() {
             </div>
           </div>
         `;
+      } else if (conv.sender === 'human') {
+        messageDiv.innerHTML = `
+          <div class="d-flex justify-content-start align-items-start gap-2 mb-3">
+            <div class="message-avatar human-avatar">
+              <i class="fas fa-user-tie"></i>
+            </div>
+            <div class="chat-message human-message">
+              <div class="message-source-badge">
+                <i class="fas fa-headset me-1"></i>담당자
+              </div>
+              <div class="message-content">${formatBotMessage(conv.message)}</div>
+              ${timestamp ? `<div class="message-time">${timestamp}</div>` : ''}
+            </div>
+          </div>
+        `;
       }
 
       messagesDiv.appendChild(messageDiv);
@@ -437,7 +522,6 @@ function clearChat() {
       suggestedQuestionsDiv.style.display = 'none';
     }
 
-    // 웰컴 스크린 다시 표시
     if (welcomeScreen) {
       welcomeScreen.style.display = 'flex';
     }
@@ -453,12 +537,12 @@ function setLoadingState(loading) {
   const sendBtnText = document.getElementById('sendBtnText');
   const sendBtnLoading = document.getElementById('sendBtnLoading');
   const userInput = document.getElementById('user-input');
-  
+
   if (!sendBtn || !sendBtnText || !sendBtnLoading || !userInput) return;
-  
+
   sendBtn.disabled = loading || isTyping;
   userInput.disabled = loading;
-  
+
   if (loading) {
     sendBtnText.style.display = 'none';
     sendBtnLoading.style.display = 'inline';
@@ -482,7 +566,6 @@ function escapeHtml(text) {
 }
 
 function formatBotMessage(message) {
-  // 간단한 마크다운 스타일 변환
   return message
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -499,27 +582,24 @@ function getQuestionTypeIcon(questionType) {
   return icons[questionType] || null;
 }
 
-
-
-function setConnectionStatus(connected) {
+function setConnectionStatus(connected, type = null) {
   const status = document.getElementById('connectionStatus');
   if (!status) return;
 
-  // 전역 연결 상태 업데이트
   isConnected = connected;
 
   if (connected) {
-    status.innerHTML = '<i class="fas fa-circle"></i><span>연결됨</span>';
+    const connectionType = type === 'socket' ? '실시간' : '연결됨';
+    const icon = type === 'socket' ? 'fa-bolt' : 'fa-circle';
+    status.innerHTML = `<i class="fas ${icon}"></i><span>${connectionType}</span>`;
     status.className = 'connection-badge';
 
-    // 연결됨: 채팅창 흐림 효과 제거
     setChatBlur(false);
     enableChatInput(true);
   } else {
     status.innerHTML = '<i class="fas fa-circle"></i><span>연결 오류</span>';
     status.className = 'connection-badge offline';
 
-    // 연결 안됨: 채팅창 흐림 효과 적용
     setChatBlur(true);
     enableChatInput(false);
   }
@@ -536,16 +616,11 @@ function updateResponseTime() {
   }
 }
 
-async function checkConnectionStatus() {
-  // API 서버가 설정되지 않은 경우 (테스트 모드)
-  if (API_BASE_URL === 'https://your-domain.duckdns.org:8000') {
-    setConnectionStatus(true); // 테스트 모드에서는 연결됨으로 표시
-    return;
-  }
-  
+// REST API 연결 상태 확인 (폴백용)
+async function checkConnectionStatusREST() {
   try {
     const response = await fetch(`${API_BASE_URL}/v1/health/`, { method: 'GET' });
-    setConnectionStatus(response.ok);
+    setConnectionStatus(response.ok, 'rest');
   } catch (error) {
     setConnectionStatus(false);
   }
@@ -597,4 +672,9 @@ function enableChatInput(enable) {
   }
 }
 
-setInterval(checkConnectionStatus, 30000);
+// Socket.IO 연결이 없을 때만 주기적으로 REST 상태 확인
+setInterval(() => {
+  if (!isSocketConnected) {
+    checkConnectionStatusREST();
+  }
+}, 30000);
