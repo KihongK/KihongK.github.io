@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // 방문자 정보 로드
   loadVisitorInfo();
 
+  // 입력 필드 실시간 저장 설정
+  setupVisitorInfoAutoSave();
+
   const hasHistory = loadChatHistory();
   setupInputHandlers();
 
@@ -229,13 +232,71 @@ function loadVisitorInfo() {
   const saved = localStorage.getItem('visitorInfo');
   if (saved) {
     visitorInfo = JSON.parse(saved);
+    // 폼 필드에 저장된 값 복원
+    restoreVisitorInfoToForm();
   }
+}
+
+// 폼 필드에 방문자 정보 복원
+function restoreVisitorInfoToForm() {
+  const nameInput = document.getElementById('visitor-name');
+  const companyInput = document.getElementById('visitor-company');
+
+  // 먼저 저장된 방문자 정보에서 복원
+  if (visitorInfo) {
+    if (nameInput && visitorInfo.name) {
+      nameInput.value = visitorInfo.name;
+    }
+    if (companyInput && visitorInfo.company) {
+      companyInput.value = visitorInfo.company;
+    }
+  }
+
+  // 임시 저장된 입력값이 있으면 덮어쓰기 (입력 중 새로고침 대비)
+  const tempName = localStorage.getItem('visitorNameTemp');
+  const tempCompany = localStorage.getItem('visitorCompanyTemp');
+
+  if (nameInput && tempName !== null) {
+    nameInput.value = tempName;
+  }
+  if (companyInput && tempCompany !== null) {
+    companyInput.value = tempCompany;
+  }
+}
+
+// 입력 필드 실시간 저장 설정
+function setupVisitorInfoAutoSave() {
+  const nameInput = document.getElementById('visitor-name');
+  const companyInput = document.getElementById('visitor-company');
+
+  if (nameInput) {
+    nameInput.addEventListener('input', function() {
+      localStorage.setItem('visitorNameTemp', this.value);
+    });
+  }
+  if (companyInput) {
+    companyInput.addEventListener('input', function() {
+      localStorage.setItem('visitorCompanyTemp', this.value);
+    });
+  }
+}
+
+// 임시 저장 데이터 삭제 (정보 제출 후)
+function clearVisitorInfoTemp() {
+  localStorage.removeItem('visitorNameTemp');
+  localStorage.removeItem('visitorCompanyTemp');
+}
+
+// 랜덤 사용자 이름 생성
+function generateRandomUsername() {
+  const randomNum = Math.floor(10000000 + Math.random() * 90000000);
+  return `User_${randomNum}`;
 }
 
 // 방문자 정보 저장
 function saveVisitorInfo(name, company) {
   visitorInfo = {
-    name: name || '',
+    name: name || generateRandomUsername(),
     company: company || '',
     timestamp: new Date().toISOString()
   };
@@ -251,6 +312,7 @@ function submitUserInfo() {
   const company = companyInput ? companyInput.value.trim() : '';
 
   saveVisitorInfo(name, company);
+  clearVisitorInfoTemp();
   showWelcomeScreen();
 
   // 포커스를 입력창으로 이동
@@ -265,6 +327,7 @@ function submitUserInfo() {
 // 방문자 정보 건너뛰기
 function skipUserInfo() {
   saveVisitorInfo('', '');
+  clearVisitorInfoTemp();
   showWelcomeScreen();
 
   setTimeout(() => {
