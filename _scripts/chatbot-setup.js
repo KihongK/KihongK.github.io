@@ -243,9 +243,9 @@ function showWelcomeScreen() {
   }
 }
 
-// 방문자 정보 로드
+// 방문자 정보 로드 (sessionStorage - 새로고침 시 초기화)
 function loadVisitorInfo() {
-  const saved = localStorage.getItem('visitorInfo');
+  const saved = sessionStorage.getItem('visitorInfo');
   if (saved) {
     visitorInfo = JSON.parse(saved);
     // 폼 필드에 저장된 값 복원
@@ -269,8 +269,8 @@ function restoreVisitorInfoToForm() {
   }
 
   // 임시 저장된 입력값이 있으면 덮어쓰기 (입력 중 새로고침 대비)
-  const tempName = localStorage.getItem('visitorNameTemp');
-  const tempCompany = localStorage.getItem('visitorCompanyTemp');
+  const tempName = sessionStorage.getItem('visitorNameTemp');
+  const tempCompany = sessionStorage.getItem('visitorCompanyTemp');
 
   if (nameInput && tempName !== null) {
     nameInput.value = tempName;
@@ -287,20 +287,20 @@ function setupVisitorInfoAutoSave() {
 
   if (nameInput) {
     nameInput.addEventListener('input', function() {
-      localStorage.setItem('visitorNameTemp', this.value);
+      sessionStorage.setItem('visitorNameTemp', this.value);
     });
   }
   if (companyInput) {
     companyInput.addEventListener('input', function() {
-      localStorage.setItem('visitorCompanyTemp', this.value);
+      sessionStorage.setItem('visitorCompanyTemp', this.value);
     });
   }
 }
 
 // 임시 저장 데이터 삭제 (정보 제출 후)
 function clearVisitorInfoTemp() {
-  localStorage.removeItem('visitorNameTemp');
-  localStorage.removeItem('visitorCompanyTemp');
+  sessionStorage.removeItem('visitorNameTemp');
+  sessionStorage.removeItem('visitorCompanyTemp');
 }
 
 // 랜덤 사용자 이름 생성
@@ -309,14 +309,14 @@ function generateRandomUsername() {
   return `User_${randomNum}`;
 }
 
-// 방문자 정보 저장
+// 방문자 정보 저장 (sessionStorage - 새로고침 시 초기화)
 function saveVisitorInfo(name, company) {
   visitorInfo = {
     name: name || generateRandomUsername(),
     company: company || '',
     timestamp: new Date().toISOString()
   };
-  localStorage.setItem('visitorInfo', JSON.stringify(visitorInfo));
+  sessionStorage.setItem('visitorInfo', JSON.stringify(visitorInfo));
 }
 
 // 방문자 정보 제출
