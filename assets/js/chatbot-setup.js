@@ -68,6 +68,18 @@ function initSocketConnection() {
     return;
   }
 
+  // 기존 연결이 있으면 먼저 종료
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+
+  // auth 정보 준비 (visitorInfo가 없으면 랜덤 이름 생성)
+  const authInfo = {
+    user_name: visitorInfo?.name || generateRandomUsername(),
+    company_name: visitorInfo?.company || ''
+  };
+
   try {
     socket = io(API_BASE_URL, {
       path: '/socket.io',
@@ -75,7 +87,8 @@ function initSocketConnection() {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      timeout: 10000
+      timeout: 10000,
+      auth: authInfo
     });
 
     // 연결 성공
@@ -313,6 +326,10 @@ function submitUserInfo() {
 
   saveVisitorInfo(name, company);
   clearVisitorInfoTemp();
+
+  // 새 방문자 정보로 소켓 재연결
+  initSocketConnection();
+
   showWelcomeScreen();
 
   // 포커스를 입력창으로 이동
@@ -328,6 +345,10 @@ function submitUserInfo() {
 function skipUserInfo() {
   saveVisitorInfo('', '');
   clearVisitorInfoTemp();
+
+  // 랜덤 이름으로 소켓 재연결
+  initSocketConnection();
+
   showWelcomeScreen();
 
   setTimeout(() => {
@@ -399,14 +420,9 @@ async function sendMessage() {
   setLoadingState(true);
   messageStartTime = Date.now();
 
-  // Socket.IO 연결이 있으면 소켓으로 전송
+  // Socket.IO 연결이 있으면 소켓으로 전송 (auth로 이미 사용자 정보 전달됨)
   if (isSocketConnected && socket) {
-    const payload = { message: message };
-    if (visitorInfo) {
-      payload.visitor_name = visitorInfo.name || '';
-      payload.visitor_company = visitorInfo.company || '';
-    }
-    socket.emit('chat:message', payload);
+    socket.emit('chat:message', { message: message });
     // 타이핑 인디케이터는 서버에서 chat:typing 이벤트로 제어
   } else {
     // REST API 폴백
