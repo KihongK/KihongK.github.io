@@ -11,6 +11,7 @@ const API_BASE_URL = 'https://api.kim-ki-hong.com';
 let socket = null;
 let isSocketConnected = false;
 let isTyping = false;
+let isSending = false;
 let lastResponseTime = 0;
 let isConnected = false;
 let messageStartTime = 0;
@@ -52,6 +53,25 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
       return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  }
+
+  // 새 메시지 스크롤 인디케이터 설정
+  const newMsgIndicator = document.getElementById('new-message-indicator');
+  if (newMsgIndicator) {
+    newMsgIndicator.addEventListener('click', () => {
+      scrollToBottom();
+      newMsgIndicator.style.display = 'none';
+    });
+  }
+
+  const chatContainerEl = document.getElementById('chat-container');
+  if (chatContainerEl) {
+    chatContainerEl.addEventListener('scroll', () => {
+      if (isNearBottom()) {
+        const indicator = document.getElementById('new-message-indicator');
+        if (indicator) indicator.style.display = 'none';
+      }
     });
   }
 
@@ -132,6 +152,27 @@ function initSocketConnection() {
         humanJoinNotified = true;
         displaySystemMessage('담당자가 대화에 참여했습니다', 'human_join');
       }
+    });
+
+    // 재연결 시도 중 UX
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log(`Socket.IO 재연결 시도 ${attemptNumber}/5`);
+      const status = document.getElementById('connectionStatus');
+      if (status) {
+        status.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i><span>재연결 중... (${attemptNumber}/5)</span>`;
+        status.className = 'connection-badge offline';
+      }
+    });
+
+    socket.on('reconnect', () => {
+      console.log('Socket.IO 재연결 성공');
+      isSocketConnected = true;
+      setConnectionStatus(true, 'socket');
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('Socket.IO 재연결 실패');
+      checkConnectionStatusREST();
     });
 
   } catch (error) {
@@ -381,6 +422,8 @@ function setupInputHandlers() {
   if (!userInput || !charCount || !sendBtn) return;
 
   userInput.addEventListener('input', function() {
+    autoResizeTextarea(this);
+
     const length = this.value.length;
     charCount.textContent = length;
 
@@ -406,6 +449,8 @@ function handleKeyPress(event) {
 
 // 메시지 전송
 async function sendMessage() {
+  if (isSending) return;
+
   const userInput = document.getElementById('user-input');
   const message = userInput.value.trim();
 
@@ -416,8 +461,11 @@ async function sendMessage() {
     return;
   }
 
+  isSending = true;
+
   displayMessage(message, 'user');
   userInput.value = '';
+  autoResizeTextarea(userInput);
   document.getElementById('charCount').textContent = '0';
 
   setLoadingState(true);
@@ -545,7 +593,13 @@ function displayMessage(message, sender, questionType = null) {
   }
 
   messagesDiv.appendChild(messageDiv);
-  scrollToBottom();
+
+  if (isNearBottom()) {
+    scrollToBottom();
+  } else {
+    const indicator = document.getElementById('new-message-indicator');
+    if (indicator) indicator.style.display = 'block';
+  }
 
   saveConversation(message, sender, questionType);
 }
@@ -614,6 +668,8 @@ function showSuggestedQuestions(questions) {
 
 // 대화 히스토리 관련 함수들
 function saveConversation(message, sender, questionType = null) {
+  if (sender === 'error') return; // 에러 메시지는 히스토리에 저장하지 않음
+
   let conversations = JSON.parse(localStorage.getItem('chatHistory') || '[]');
   conversations.push({
     message: message,
@@ -724,6 +780,8 @@ function clearChat() {
 
 // 유틸리티 함수들
 function setLoadingState(loading) {
+  if (!loading) isSending = false;
+
   const sendBtn = document.getElementById('sendBtn');
   const sendBtnText = document.getElementById('sendBtnText');
   const sendBtnLoading = document.getElementById('sendBtnLoading');
@@ -746,8 +804,14 @@ function setLoadingState(loading) {
 function scrollToBottom() {
   const chatContainer = document.getElementById('chat-container');
   if (chatContainer) {
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
   }
+}
+
+function isNearBottom() {
+  const chatContainer = document.getElementById('chat-container');
+  if (!chatContainer) return true;
+  return chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
 }
 
 function escapeHtml(text) {
@@ -757,10 +821,24 @@ function escapeHtml(text) {
 }
 
 function formatBotMessage(message) {
-  return message
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>');
+  // 1. HTML 이스케이프 (XSS 방지) - 반드시 먼저 적용
+  let result = escapeHtml(message);
+  // 2. 코드블록 (```) 처리
+  result = result.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  // 3. 인라인 코드 (`) 처리
+  result = result.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // 4. Bold (**text**)
+  result = result.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // 5. Italic (*text*)
+  result = result.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  // 6. 줄바꿈
+  result = result.replace(/\n/g, '<br>');
+  return result;
+}
+
+function autoResizeTextarea(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
 }
 
 function getQuestionTypeIcon(questionType) {
@@ -855,7 +933,7 @@ function enableChatInput(enable) {
   }
 
   if (charCount) {
-    charCount.style.color = enable ? '' : '#ff6b6b';
+    charCount.style.color = enable ? '' : 'var(--chatbot-error)';
   }
 
   if (inputContainer) {
