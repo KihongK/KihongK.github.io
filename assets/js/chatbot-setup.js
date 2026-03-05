@@ -14,6 +14,7 @@ let isConnected = false;
 let messageStartTime = 0;
 let humanJoinNotified = false;
 let visitorInfo = null;
+let _pageInitialized = false;
 
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', function() {
@@ -78,6 +79,15 @@ document.addEventListener('DOMContentLoaded', function() {
       userInput.focus();
     }
   }, 500);
+
+  // 모바일 키보드 올라올 때 스크롤 조정
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      scrollToBottom();
+    });
+  }
+
+  _pageInitialized = true;
 });
 
 // Socket.IO 연결 초기화
@@ -230,21 +240,51 @@ function displaySystemMessage(message, type) {
   scrollToBottom();
 }
 
+// 화면 전환 헬퍼 - 초기화 후에는 CSS 애니메이션 클래스 활용
+function _transitionTo(showEl, showDisplay, hideEls) {
+  if (!_pageInitialized) {
+    // 초기 로드: 애니메이션 없이 바로 표시
+    hideEls.forEach(el => { if (el) el.style.display = 'none'; });
+    if (showEl) showEl.style.display = showDisplay;
+    return;
+  }
+
+  const visibleHideEls = hideEls.filter(el => el && el.style.display !== 'none');
+
+  const doShow = () => {
+    if (!showEl) return;
+    showEl.style.display = showDisplay;
+    showEl.classList.add('screen-entering');
+    const onEnterEnd = () => showEl.classList.remove('screen-entering');
+    showEl.addEventListener('animationend', onEnterEnd, { once: true });
+    showEl.addEventListener('animationcancel', onEnterEnd, { once: true });
+  };
+
+  if (visibleHideEls.length === 0) {
+    doShow();
+    return;
+  }
+
+  let done = 0;
+  visibleHideEls.forEach(el => {
+    el.classList.add('screen-exiting');
+    const onExitEnd = () => {
+      el.classList.remove('screen-exiting');
+      el.style.display = 'none';
+      done++;
+      if (done === visibleHideEls.length) doShow();
+    };
+    el.addEventListener('animationend', onExitEnd, { once: true });
+    el.addEventListener('animationcancel', onExitEnd, { once: true });
+  });
+}
+
 // 웰컴 스크린 숨기고 채팅 화면 표시
 function showChatView() {
   const userInfoForm = document.getElementById('user-info-form');
   const welcomeScreen = document.getElementById('welcome-screen');
   const chatContainer = document.getElementById('chat-container');
-
-  if (userInfoForm) {
-    userInfoForm.style.display = 'none';
-  }
-  if (welcomeScreen) {
-    welcomeScreen.style.display = 'none';
-  }
-  if (chatContainer) {
-    chatContainer.style.display = 'block';
-  }
+  _transitionTo(chatContainer, 'block', [userInfoForm, welcomeScreen]);
 }
 
 // 방문자 정보 폼 표시
@@ -252,16 +292,7 @@ function showUserInfoForm() {
   const userInfoForm = document.getElementById('user-info-form');
   const welcomeScreen = document.getElementById('welcome-screen');
   const chatContainer = document.getElementById('chat-container');
-
-  if (userInfoForm) {
-    userInfoForm.style.display = 'flex';
-  }
-  if (welcomeScreen) {
-    welcomeScreen.style.display = 'none';
-  }
-  if (chatContainer) {
-    chatContainer.style.display = 'none';
-  }
+  _transitionTo(userInfoForm, 'flex', [welcomeScreen, chatContainer]);
 }
 
 // 웰컴 스크린 표시 (정보 입력 후)
@@ -269,16 +300,7 @@ function showWelcomeScreen() {
   const userInfoForm = document.getElementById('user-info-form');
   const welcomeScreen = document.getElementById('welcome-screen');
   const chatContainer = document.getElementById('chat-container');
-
-  if (userInfoForm) {
-    userInfoForm.style.display = 'none';
-  }
-  if (welcomeScreen) {
-    welcomeScreen.style.display = 'flex';
-  }
-  if (chatContainer) {
-    chatContainer.style.display = 'none';
-  }
+  _transitionTo(welcomeScreen, 'flex', [userInfoForm, chatContainer]);
 }
 
 // 방문자 정보 로드 (sessionStorage - 새로고침 시 초기화)
@@ -476,6 +498,9 @@ async function sendMessage() {
     // REST API 폴백
     await sendMessageREST(message);
   }
+
+  // 모바일에서 키보드 유지되도록 포커스 복원
+  userInput.focus();
 }
 
 // REST API로 메시지 전송 (폴백)
@@ -749,29 +774,48 @@ function loadChatHistory() {
 }
 
 function clearChat() {
-  if (confirm('대화를 모두 삭제하시겠습니까?')) {
-    const messagesDiv = document.getElementById('messages');
-    const suggestedQuestionsDiv = document.getElementById('suggestedQuestions');
-    const welcomeScreen = document.getElementById('welcome-screen');
-    const chatContainer = document.getElementById('chat-container');
+  var dialog = document.getElementById('clear-chat-confirm');
+  if (dialog) {
+    dialog.classList.add('show');
+  }
+}
 
-    if (messagesDiv) {
-      messagesDiv.innerHTML = '';
-    }
+function confirmClearChat() {
+  var dialog = document.getElementById('clear-chat-confirm');
+  if (dialog) {
+    dialog.classList.remove('show');
+  }
 
-    localStorage.removeItem('chatHistory');
-    humanJoinNotified = false;
+  const messagesDiv = document.getElementById('messages');
+  const suggestedQuestionsDiv = document.getElementById('suggestedQuestions');
+  const welcomeScreen = document.getElementById('welcome-screen');
+  const chatContainer = document.getElementById('chat-container');
 
-    if (suggestedQuestionsDiv) {
-      suggestedQuestionsDiv.style.display = 'none';
-    }
+  if (messagesDiv) {
+    messagesDiv.innerHTML = '';
+  }
 
-    if (welcomeScreen) {
-      welcomeScreen.style.display = 'flex';
-    }
-    if (chatContainer) {
-      chatContainer.style.display = 'none';
-    }
+  localStorage.removeItem('chatHistory');
+  sessionStorage.removeItem('visitorInfo');
+  visitorInfo = null;
+  humanJoinNotified = false;
+
+  if (suggestedQuestionsDiv) {
+    suggestedQuestionsDiv.style.display = 'none';
+  }
+
+  if (welcomeScreen) {
+    welcomeScreen.style.display = 'flex';
+  }
+  if (chatContainer) {
+    chatContainer.style.display = 'none';
+  }
+}
+
+function cancelClearChat() {
+  var dialog = document.getElementById('clear-chat-confirm');
+  if (dialog) {
+    dialog.classList.remove('show');
   }
 }
 
@@ -863,7 +907,7 @@ function setConnectionStatus(connected, type = null) {
     setChatBlur(false);
     enableChatInput(true);
   } else {
-    status.innerHTML = '<i class="fas fa-circle"></i><span>연결 오류</span>';
+    status.innerHTML = '<i class="fas fa-circle"></i><span>연결 오류</span><button class="reconnect-btn" onclick="initSocketConnection()">재연결</button>';
     status.className = 'connection-badge offline';
 
     setChatBlur(true);
