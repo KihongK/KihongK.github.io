@@ -6,6 +6,18 @@ nav: false
 nav_order: 2
 ---
 <div class="chatbot-page">
+  <!-- Clear Chat Confirm Dialog -->
+  <div id="clear-chat-confirm" class="clear-chat-confirm" role="dialog" aria-modal="true" aria-labelledby="clear-confirm-title">
+    <div class="clear-chat-confirm-box">
+      <p class="clear-chat-confirm-title" id="clear-confirm-title">대화를 초기화할까요?</p>
+      <p class="clear-chat-confirm-desc">모든 대화 내용이 삭제됩니다.</p>
+      <div class="clear-chat-confirm-actions">
+        <button class="clear-chat-confirm-no" onclick="cancelClearChat()">취소</button>
+        <button class="clear-chat-confirm-yes" onclick="confirmClearChat()">삭제</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Header -->
   <div class="chatbot-header">
     <div class="chatbot-header-inner">
@@ -245,6 +257,7 @@ nav_order: 2
     display: flex;
     flex-direction: column;
     min-height: calc(100vh - 60px);
+    min-height: calc(100dvh - 60px);
     background: var(--global-bg-color);
   }
 
@@ -332,6 +345,24 @@ nav_order: 2
     border-color: var(--chatbot-error-border);
   }
 
+  .reconnect-btn {
+    background: none;
+    border: 1px solid var(--chatbot-error);
+    color: var(--chatbot-error);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    margin-left: 0.25rem;
+    transition: all 0.15s ease;
+  }
+
+  .reconnect-btn:hover {
+    background: var(--chatbot-error);
+    color: white;
+  }
+
   .chatbot-action-btn {
     width: 36px;
     height: 36px;
@@ -403,6 +434,7 @@ nav_order: 2
     align-items: center;
     gap: 0.625rem;
     padding: 0.625rem 0.875rem;
+    min-height: 48px;
     border-radius: 0.5rem;
     color: var(--global-text-color);
     text-decoration: none;
@@ -686,6 +718,12 @@ nav_order: 2
     border-color: var(--global-theme-color);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .quick-question-card:active {
+    transform: scale(0.97);
+    box-shadow: none;
+    border-color: var(--global-theme-color);
   }
 
   .quick-question-icon {
@@ -1139,6 +1177,7 @@ nav_order: 2
   .suggestion-btn {
     font-size: 0.8rem;
     padding: 0.5rem 1rem;
+    min-height: 40px;
     border-radius: 2rem;
     border: 1px solid var(--global-divider-color);
     background: var(--global-card-bg-color);
@@ -1237,6 +1276,11 @@ nav_order: 2
     transform: scale(1.05);
   }
 
+  .chatbot-send-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .chatbot-input-info {
     display: flex;
     justify-content: space-between;
@@ -1267,6 +1311,98 @@ nav_order: 2
   }
 
   /* =============================================
+     Clear Chat Confirm Dialog
+     ============================================= */
+  .clear-chat-confirm {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .clear-chat-confirm.show {
+    display: flex;
+  }
+
+  .clear-chat-confirm-box {
+    background: var(--global-card-bg-color);
+    border: 1px solid var(--global-divider-color);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    max-width: 300px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    animation: confirmEnter 0.18s ease;
+  }
+
+  @keyframes confirmEnter {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .clear-chat-confirm-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--global-text-color);
+    margin: 0 0 0.375rem 0;
+  }
+
+  .clear-chat-confirm-desc {
+    font-size: 0.85rem;
+    color: var(--global-text-color-light);
+    margin: 0 0 1.25rem 0;
+  }
+
+  .clear-chat-confirm-actions {
+    display: flex;
+    gap: 0.625rem;
+  }
+
+  .clear-chat-confirm-yes {
+    flex: 1;
+    padding: 0.625rem;
+    min-height: 44px;
+    border: none;
+    border-radius: 0.5rem;
+    background: var(--chatbot-error);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .clear-chat-confirm-yes:hover {
+    opacity: 0.85;
+  }
+
+  .clear-chat-confirm-no {
+    flex: 1;
+    padding: 0.625rem;
+    min-height: 44px;
+    border: 1px solid var(--global-divider-color);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--global-text-color);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .clear-chat-confirm-no:hover {
+    background: var(--global-divider-color);
+  }
+
+  /* =============================================
      Mobile Responsive — 768px
      ============================================= */
   @media (max-width: 768px) {
@@ -1292,6 +1428,36 @@ nav_order: 2
 
     .chatbot-container {
       padding: 1.5rem 1rem;
+    }
+
+    /* Code blocks: prevent overflow on mobile */
+    .message-content pre {
+      font-size: 0.8em;
+      max-width: calc(100vw - 4rem);
+    }
+
+    /* user-info-form: pad bottom so keyboard doesn't cover the form */
+    .user-info-form {
+      padding-bottom: 2rem;
+      overflow-y: auto;
+    }
+
+    /* new-message-indicator: fix position on mobile so it floats above footer */
+    .new-message-indicator {
+      position: fixed;
+      bottom: 5.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .new-message-indicator:hover {
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    /* suggested-questions: compact padding and ensure visibility */
+    .suggested-questions {
+      padding: 0.75rem 0;
+      flex-shrink: 0;
     }
 
     .welcome-icon {
@@ -1346,6 +1512,12 @@ nav_order: 2
     .chat-message {
       max-width: 90%;
       padding: 0.875rem 1rem;
+    }
+
+    /* Send button: meet Apple HIG 44×44px minimum touch target */
+    .chatbot-send-btn {
+      width: 44px;
+      height: 44px;
     }
   }
 </style>
