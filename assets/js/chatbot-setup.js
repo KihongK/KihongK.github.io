@@ -14,6 +14,7 @@ let isConnected = false;
 let messageStartTime = 0;
 let humanJoinNotified = false;
 let visitorInfo = null;
+let hasSavedChatHistory = false;
 let _pageInitialized = false;
 
 // 페이지 로드시 초기화
@@ -29,21 +30,24 @@ document.addEventListener('DOMContentLoaded', function() {
   setupVisitorInfoAutoSave();
 
   const hasHistory = loadChatHistory();
+  hasSavedChatHistory = hasHistory;
   setupInputHandlers();
 
-  // Socket.IO 연결 시도
-  initSocketConnection();
-
-  // 방문자 정보가 없고 채팅 기록도 없으면 정보 입력 폼 표시
-  if (!visitorInfo && !hasHistory) {
+  // 방문자 정보 입력/건너뛰기 선택 전에는 백엔드 연결을 시작하지 않음
+  if (!visitorInfo) {
+    setConnectionWaitingStatus();
     showUserInfoForm();
-  } else if (hasHistory) {
-    showChatView();
-  }
+  } else {
+    initSocketConnection();
 
-  if (!isConnected) {
-    setChatBlur(true);
-    enableChatInput(false);
+    if (hasHistory) {
+      showChatView();
+    }
+
+    if (!isConnected) {
+      setChatBlur(true);
+      enableChatInput(false, '서버에 연결 중입니다');
+    }
   }
 
   // 부트스트랩 툴팁 초기화
@@ -92,22 +96,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Socket.IO 연결 초기화
 function initSocketConnection() {
+  if (!visitorInfo) {
+    setConnectionWaitingStatus();
+    return;
+  }
+
   if (typeof io === 'undefined') {
     console.warn('Socket.IO not loaded, falling back to REST API');
     checkConnectionStatusREST();
     return;
   }
 
-  // 기존 연결이 있으면 먼저 종료
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
+  setConnectionPendingStatus();
 
-  // auth 정보 준비 (visitorInfo가 없으면 랜덤 이름 생성)
+  // 기존 연결이 있으면 먼저 종료
+  disconnectSocketConnection();
+
+  // auth 정보 준비 (입력하지 않은 경우 saveVisitorInfo에서 랜덤 이름 생성)
   const authInfo = {
-    user_name: visitorInfo?.name || generateRandomUsername(),
-    company_name: visitorInfo?.company || ''
+    user_name: visitorInfo.name,
+    company_name: visitorInfo.company || ''
   };
 
   try {
@@ -303,6 +311,14 @@ function showWelcomeScreen() {
   _transitionTo(welcomeScreen, 'flex', [userInfoForm, chatContainer]);
 }
 
+function showPostVisitorStartScreen() {
+  if (hasSavedChatHistory) {
+    showChatView();
+  } else {
+    showWelcomeScreen();
+  }
+}
+
 // 방문자 정보 로드 (sessionStorage - 새로고침 시 초기화)
 function loadVisitorInfo() {
   const saved = sessionStorage.getItem('visitorInfo');
@@ -379,6 +395,17 @@ function saveVisitorInfo(name, company) {
   sessionStorage.setItem('visitorInfo', JSON.stringify(visitorInfo));
 }
 
+function disconnectSocketConnection() {
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
+
+  isSocketConnected = false;
+  isConnected = false;
+}
+
 // 방문자 정보 제출
 function submitUserInfo() {
   const nameInput = document.getElementById('visitor-name');
@@ -393,7 +420,7 @@ function submitUserInfo() {
   // 새 방문자 정보로 소켓 재연결
   initSocketConnection();
 
-  showWelcomeScreen();
+  showPostVisitorStartScreen();
 
   // 포커스를 입력창으로 이동
   setTimeout(() => {
@@ -412,7 +439,7 @@ function skipUserInfo() {
   // 랜덤 이름으로 소켓 재연결
   initSocketConnection();
 
-  showWelcomeScreen();
+  showPostVisitorStartScreen();
 
   setTimeout(() => {
     const userInput = document.getElementById('user-input');
@@ -788,8 +815,6 @@ function confirmClearChat() {
 
   const messagesDiv = document.getElementById('messages');
   const suggestedQuestionsDiv = document.getElementById('suggestedQuestions');
-  const welcomeScreen = document.getElementById('welcome-screen');
-  const chatContainer = document.getElementById('chat-container');
 
   if (messagesDiv) {
     messagesDiv.innerHTML = '';
@@ -798,18 +823,17 @@ function confirmClearChat() {
   localStorage.removeItem('chatHistory');
   sessionStorage.removeItem('visitorInfo');
   visitorInfo = null;
+  hasSavedChatHistory = false;
   humanJoinNotified = false;
+  disconnectSocketConnection();
+  setConnectionWaitingStatus();
+  clearVisitorInfoTemp();
 
   if (suggestedQuestionsDiv) {
     suggestedQuestionsDiv.style.display = 'none';
   }
 
-  if (welcomeScreen) {
-    welcomeScreen.style.display = 'flex';
-  }
-  if (chatContainer) {
-    chatContainer.style.display = 'none';
-  }
+  showUserInfoForm();
 }
 
 function cancelClearChat() {
@@ -915,6 +939,31 @@ function setConnectionStatus(connected, type = null) {
   }
 }
 
+function setConnectionWaitingStatus() {
+  const status = document.getElementById('connectionStatus');
+  if (status) {
+    status.innerHTML = '<i class="fas fa-user-clock"></i><span>대화 시작 대기</span>';
+    status.className = 'connection-badge pending';
+  }
+
+  isConnected = false;
+  isSocketConnected = false;
+  setChatBlur(false);
+  enableChatInput(false, '대화를 시작하면 메시지를 보낼 수 있습니다');
+}
+
+function setConnectionPendingStatus() {
+  const status = document.getElementById('connectionStatus');
+  if (status) {
+    status.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>연결 중...</span>';
+    status.className = 'connection-badge pending';
+  }
+
+  isConnected = false;
+  setChatBlur(true);
+  enableChatInput(false, '서버에 연결 중입니다');
+}
+
 function updateResponseTime() {
   if (lastResponseTime > 0) {
     const responseTimeElement = document.getElementById('responseTime');
@@ -928,6 +977,11 @@ function updateResponseTime() {
 
 // REST API 연결 상태 확인 (폴백용)
 async function checkConnectionStatusREST() {
+  if (!visitorInfo) {
+    setConnectionWaitingStatus();
+    return;
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/v1/health/`, { method: 'GET' });
     setConnectionStatus(response.ok, 'rest');
@@ -958,7 +1012,7 @@ function setChatBlur(blur) {
 }
 
 // 채팅 입력 필드 활성화/비활성화
-function enableChatInput(enable) {
+function enableChatInput(enable, disabledPlaceholder) {
   const userInput = document.getElementById('user-input');
   const sendBtn = document.getElementById('sendBtn');
   const charCount = document.getElementById('charCount');
@@ -966,7 +1020,9 @@ function enableChatInput(enable) {
 
   if (userInput) {
     userInput.disabled = !enable;
-    userInput.placeholder = enable ? '메시지를 입력하세요...' : '서버 연결 오류로 메시지를 보낼 수 없습니다';
+    userInput.placeholder = enable
+      ? '메시지를 입력하세요...'
+      : (disabledPlaceholder || '서버 연결 오류로 메시지를 보낼 수 없습니다');
   }
 
   if (sendBtn) {
@@ -984,7 +1040,7 @@ function enableChatInput(enable) {
 
 // Socket.IO 연결이 없을 때만 주기적으로 REST 상태 확인
 setInterval(() => {
-  if (!isSocketConnected) {
+  if (visitorInfo && !isSocketConnected) {
     checkConnectionStatusREST();
   }
 }, 30000);
