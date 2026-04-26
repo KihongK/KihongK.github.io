@@ -59,31 +59,33 @@ External API Backend         → https://api.kim-ki-hong.com/v1/chat/
 
 ### Key Chatbot Files
 
-| File | Purpose |
-|------|---------|
-| `_scripts/chatbot-setup.js` | Main chatbot logic: API calls, message handling, UI state |
-| `_layouts/roy.liquid` | Complete UI with embedded styles (chat messages, typing indicator, welcome screen) |
-| `_pages/roy.md` | Page frontmatter only (layout: roy, permalink: /api-demo/) |
+| File                        | Purpose                                                                            |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `_scripts/chatbot-setup.js` | Main chatbot logic: API calls, message handling, UI state                          |
+| `_layouts/roy.liquid`       | Complete UI with embedded styles (chat messages, typing indicator, welcome screen) |
+| `_pages/roy.md`             | Page frontmatter only (layout: roy, permalink: /api-demo/)                         |
 
 ### Communication Protocol
 
 **Primary: Socket.IO (실시간 통신)**
+
 ```
 URL: https://api.kim-ki-hong.com
 Path: /socket.io
 Transports: ['websocket', 'polling']
 ```
 
-| Event | Direction | Payload | Description |
-|-------|-----------|---------|-------------|
-| `connect` | - | - | 연결 성공 |
-| `disconnect` | - | - | 연결 해제 |
-| `chat:message` | Client→Server | `{ message: string }` | 사용자 질문 전송 |
-| `chat:response` | Server→Client | `{ response, source: "llm"\|"human", timestamp }` | 응답 수신 |
-| `chat:typing` | Server→Client | `{ is_typing: boolean }` | 타이핑 상태 |
-| `chat:human_join` | Server→Client | - | 담당자 참여 알림 |
+| Event             | Direction     | Payload                                           | Description      |
+| ----------------- | ------------- | ------------------------------------------------- | ---------------- |
+| `connect`         | -             | -                                                 | 연결 성공        |
+| `disconnect`      | -             | -                                                 | 연결 해제        |
+| `chat:message`    | Client→Server | `{ message: string }`                             | 사용자 질문 전송 |
+| `chat:response`   | Server→Client | `{ response, source: "llm"\|"human", timestamp }` | 응답 수신        |
+| `chat:typing`     | Server→Client | `{ is_typing: boolean }`                          | 타이핑 상태      |
+| `chat:human_join` | Server→Client | -                                                 | 담당자 참여 알림 |
 
 **Fallback: REST API**
+
 ```
 POST /v1/chat/  → { message } → { response, question_type, suggested_questions }
 GET  /v1/health/ → 연결 상태 확인
@@ -91,10 +93,10 @@ GET  /v1/health/ → 연결 상태 확인
 
 ### Message Source Types
 
-| source | 의미 | UI 표시 |
-|--------|------|---------|
-| `llm` | LLM 자동 응답 | 기존 봇 스타일 (파란색) |
-| `human` | 개발자 수동 응답 | 녹색 + "담당자" 배지 |
+| source  | 의미             | UI 표시                 |
+| ------- | ---------------- | ----------------------- |
+| `llm`   | LLM 자동 응답    | 기존 봇 스타일 (파란색) |
+| `human` | 개발자 수동 응답 | 녹색 + "담당자" 배지    |
 
 ### Chatbot Key Functions
 
@@ -108,8 +110,9 @@ GET  /v1/health/ → 연결 상태 확인
 ### API Configuration
 
 `_scripts/chatbot-setup.js`:
+
 ```javascript
-const API_BASE_URL = 'https://api.kim-ki-hong.com';
+const API_BASE_URL = "https://api.kim-ki-hong.com";
 ```
 
 ## Jekyll Theme Structure
@@ -136,6 +139,7 @@ const API_BASE_URL = 'https://api.kim-ki-hong.com';
 ## Deployment
 
 Automatic via GitHub Actions (`.github/workflows/deploy.yml`):
+
 1. Push to `main` triggers build
 2. Site builds to `gh-pages` branch
 3. GitHub Pages serves from `gh-pages`
