@@ -949,7 +949,7 @@ function setConnectionWaitingStatus() {
   isConnected = false;
   isSocketConnected = false;
   setChatBlur(false);
-  enableChatInput(false, '대화를 시작하면 메시지를 보낼 수 있습니다');
+  enableChatInput(false, '대화 시작 후 입력 가능');
 }
 
 function setConnectionPendingStatus() {
@@ -1017,12 +1017,13 @@ function enableChatInput(enable, disabledPlaceholder) {
   const sendBtn = document.getElementById('sendBtn');
   const charCount = document.getElementById('charCount');
   const inputContainer = document.querySelector('.chatbot-input-container');
+  const disabledMessage = disabledPlaceholder || '대화 시작 후 입력 가능';
 
   if (userInput) {
     userInput.disabled = !enable;
     userInput.placeholder = enable
-      ? '메시지를 입력하세요...'
-      : (disabledPlaceholder || '서버 연결 오류로 메시지를 보낼 수 없습니다');
+      ? '무엇이든 물어보세요'
+      : disabledMessage;
   }
 
   if (sendBtn) {
@@ -1030,11 +1031,12 @@ function enableChatInput(enable, disabledPlaceholder) {
   }
 
   if (charCount) {
-    charCount.style.color = enable ? '' : 'var(--chatbot-error)';
+    charCount.style.color = '';
   }
 
   if (inputContainer) {
-    inputContainer.style.opacity = enable ? '1' : '0.5';
+    inputContainer.style.opacity = '';
+    inputContainer.classList.toggle('is-disabled', !enable);
   }
 }
 
