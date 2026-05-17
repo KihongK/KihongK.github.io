@@ -166,34 +166,52 @@ nav_order: 2
   <div class="chatbot-footer">
     <div class="chatbot-input-wrapper">
       <div class="chatbot-input-container">
-        <textarea
-          id="user-input"
-          class="chatbot-input"
-          placeholder="무엇이든 물어보세요"
-          onkeypress="handleKeyPress(event)"
-          oninput="autoResizeTextarea(this)"
-          maxlength="500"
-          aria-label="챗봇에게 질문 입력"
-          autocomplete="off"
-          rows="1"
-        ></textarea>
+        <div class="chatbot-composer-primary">
+          <button
+            type="button"
+            class="chatbot-composer-icon-btn"
+            onclick="document.getElementById('user-input')?.focus()"
+            aria-label="질문 입력창 포커스"
+            title="질문 입력"
+          >
+            <i class="fas fa-plus"></i>
+          </button>
+          <textarea
+            id="user-input"
+            class="chatbot-input"
+            placeholder="무엇이든 물어보세요"
+            onkeypress="handleKeyPress(event)"
+            oninput="autoResizeTextarea(this)"
+            maxlength="500"
+            aria-label="챗봇에게 질문 입력"
+            autocomplete="off"
+            rows="1"
+          ></textarea>
+        </div>
         <div class="chatbot-composer-bar">
           <div class="chatbot-input-info">
-            <span id="responseTime" class="response-time"></span>
-            <span class="char-count"><span id="charCount">0</span>/500</span>
-          </div>
-          <button
-            class="chatbot-send-btn"
-            id="sendBtn"
-            onclick="sendMessage()"
-            disabled
-            aria-label="메시지 전송"
-          >
-            <span id="sendBtnText"><i class="fas fa-paper-plane"></i></span>
-            <span id="sendBtnLoading" style="display: none;">
-              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span class="chatbot-mode-pill">
+              <i class="fas fa-bolt"></i>
+              Portfolio AI
             </span>
-          </button>
+            <span id="responseTime" class="response-time"></span>
+          </div>
+          <div class="chatbot-composer-actions">
+            <span class="char-count"><span id="charCount">0</span>/500</span>
+            <button
+              type="button"
+              class="chatbot-send-btn"
+              id="sendBtn"
+              onclick="sendMessage()"
+              disabled
+              aria-label="메시지 전송"
+            >
+              <span id="sendBtnText"><i class="fas fa-arrow-up"></i></span>
+              <span id="sendBtnLoading" style="display: none;">
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -273,8 +291,8 @@ nav_order: 2
   }
 
   .chatbot-page {
-    --chatbot-floating-composer-space: clamp(8.5rem, 16vh, 11rem);
-    --chatbot-floating-composer-bottom: clamp(1rem, 2.5vh, 1.75rem);
+    --chatbot-floating-composer-space: clamp(9.5rem, 17vh, 12.25rem);
+    --chatbot-floating-composer-bottom: clamp(0.875rem, 2.5vh, 1.75rem);
     display: flex;
     flex-direction: column;
     height: calc(100vh - 56px);
@@ -282,7 +300,8 @@ nav_order: 2
     min-height: 0;
     margin-top: -3rem;
     overflow: hidden;
-    background: var(--global-bg-color);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--chatbot-accent) 7%, transparent), transparent 34rem),
+      var(--global-bg-color);
   }
 
   /* =============================================
@@ -436,6 +455,7 @@ nav_order: 2
   .clear-chat-confirm-yes:focus-visible,
   .clear-chat-confirm-no:focus-visible,
   .reconnect-btn:focus-visible,
+  .chatbot-composer-icon-btn:focus-visible,
   .chatbot-send-btn:focus-visible {
     outline: 3px solid var(--chatbot-focus-ring);
     outline-offset: 2px;
@@ -570,7 +590,7 @@ nav_order: 2
   }
 
   .chatbot-container {
-    max-width: 900px;
+    max-width: 48rem;
     width: 100%;
     margin: 0 auto;
     padding: 2rem 1.5rem calc(2rem + var(--chatbot-floating-composer-space));
@@ -739,14 +759,15 @@ nav_order: 2
   .welcome-icon {
     width: 64px;
     height: 64px;
-    border-radius: 8px;
-    background: var(--chatbot-accent-soft);
+    border-radius: 18px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--chatbot-accent) 20%, transparent), transparent), var(--chatbot-accent-soft);
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--chatbot-accent);
     font-size: 1.6rem;
     margin-bottom: 1.5rem;
+    box-shadow: 0 18px 38px color-mix(in srgb, var(--chatbot-accent) 15%, transparent);
   }
 
   .welcome-title {
@@ -769,6 +790,7 @@ nav_order: 2
     gap: 1rem;
     flex-wrap: wrap;
     justify-content: center;
+    width: 100%;
   }
 
   .quick-question-card {
@@ -776,19 +798,25 @@ nav_order: 2
     flex-direction: column;
     align-items: flex-start;
     padding: 1rem;
-    width: 200px;
-    background: var(--global-card-bg-color);
+    width: min(100%, 13.5rem);
+    background: color-mix(in srgb, var(--global-card-bg-color) 94%, transparent);
     border: 1px solid var(--global-divider-color);
-    border-radius: 8px;
+    border-radius: 18px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease,
+      background 0.2s ease;
     text-align: left;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   }
 
   .quick-question-card:hover {
     border-color: var(--chatbot-accent);
     transform: translateY(-2px);
     box-shadow: var(--chatbot-surface-shadow);
+    background: var(--global-card-bg-color);
   }
 
   .quick-question-card:active {
@@ -798,8 +826,13 @@ nav_order: 2
   }
 
   .quick-question-icon {
-    width: 24px;
-    height: 24px;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    background: var(--chatbot-accent-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--chatbot-accent);
     margin-bottom: 0.75rem;
     font-size: 1rem;
@@ -842,9 +875,9 @@ nav_order: 2
      Chat Messages
      ============================================= */
   .chat-message {
-    max-width: 75%;
+    max-width: min(75%, 40rem);
     padding: 0.925rem 1.125rem;
-    border-radius: 8px;
+    border-radius: 22px;
     position: relative;
     margin-bottom: 0.5rem;
   }
@@ -857,15 +890,16 @@ nav_order: 2
     background: var(--global-card-bg-color);
     border: 1px solid var(--global-divider-color);
     color: var(--global-text-color);
-    border-top-left-radius: 3px;
+    border-top-left-radius: 8px;
     box-shadow: var(--chatbot-msg-shadow);
   }
 
   .user-message {
     background: var(--chatbot-accent);
     color: white;
-    border-top-right-radius: 3px;
+    border-top-right-radius: 8px;
     margin-left: auto;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--chatbot-accent) 20%, transparent);
   }
 
   .error-message {
@@ -1123,7 +1157,7 @@ nav_order: 2
   .message-avatar {
     width: 32px;
     height: 32px;
-    border-radius: 50%;
+    border-radius: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1285,12 +1319,24 @@ nav_order: 2
     pointer-events: none;
   }
 
+  .chatbot-footer::before {
+    content: '';
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--chatbot-floating-composer-space) + 2rem);
+    background: linear-gradient(to top, var(--global-bg-color) 35%, transparent);
+    pointer-events: none;
+    z-index: -1;
+  }
+
   .chatbot-page:has(#user-info-form:not([style*='display: none'])) .chatbot-footer {
     display: none;
   }
 
   .chatbot-input-wrapper {
-    max-width: 760px;
+    max-width: 48rem;
     margin: 0 auto;
     padding: 0;
     pointer-events: auto;
@@ -1300,12 +1346,15 @@ nav_order: 2
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 0.35rem;
-    background: var(--global-card-bg-color);
-    border: 1px solid var(--global-divider-color);
-    border-radius: 8px;
-    padding: 0.75rem;
-    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+    gap: 0.45rem;
+    background: color-mix(in srgb, var(--global-card-bg-color) 96%, transparent);
+    border: 1px solid color-mix(in srgb, var(--global-divider-color) 76%, transparent);
+    border-radius: 28px;
+    padding: 0.625rem;
+    box-shadow:
+      0 18px 52px rgba(15, 23, 42, 0.12),
+      0 2px 8px rgba(15, 23, 42, 0.06);
+    backdrop-filter: blur(16px);
     transition:
       border-color 0.2s ease,
       box-shadow 0.2s ease,
@@ -1316,24 +1365,55 @@ nav_order: 2
     border-color: var(--chatbot-accent);
     box-shadow:
       0 0 0 3px var(--chatbot-focus-ring),
-      0 16px 40px rgba(15, 23, 42, 0.1);
+      0 22px 58px rgba(15, 23, 42, 0.14);
   }
 
   .chatbot-input-container.is-disabled {
     background: color-mix(in srgb, var(--global-card-bg-color) 92%, var(--global-divider-color));
   }
 
+  .chatbot-composer-primary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    gap: 0.625rem;
+    min-height: 3.25rem;
+  }
+
+  .chatbot-composer-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--global-divider-color);
+    background: transparent;
+    color: var(--global-text-color-light);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      background 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .chatbot-composer-icon-btn:hover {
+    background: var(--chatbot-accent-soft);
+    color: var(--chatbot-accent);
+    border-color: color-mix(in srgb, var(--chatbot-accent) 35%, var(--global-divider-color));
+  }
+
   .chatbot-input {
     width: 100%;
     border: none;
     background: transparent;
-    padding: 0.125rem 0.125rem 0.25rem;
+    padding: 0.65rem 0.25rem 0.2rem;
     font-size: 1rem;
     color: var(--global-text-color);
     outline: none;
     resize: none;
     overflow-y: hidden;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     max-height: 9rem;
     line-height: 1.5;
     font-family: inherit;
@@ -1364,12 +1444,21 @@ nav_order: 2
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
+    min-height: 2.25rem;
+    padding-left: calc(36px + 0.625rem);
+  }
+
+  .chatbot-composer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
   }
 
   .chatbot-send-btn {
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: 50%;
     border: none;
     background: var(--global-divider-color);
     color: var(--global-text-color-light);
@@ -1382,13 +1471,14 @@ nav_order: 2
   }
 
   .chatbot-send-btn:not(:disabled) {
-    background: var(--chatbot-accent);
-    color: white;
+    background: var(--global-text-color);
+    color: var(--global-bg-color);
   }
 
   .chatbot-send-btn:not(:disabled):hover {
     transform: scale(1.05);
-    background: var(--chatbot-accent-strong);
+    background: var(--chatbot-accent);
+    color: white;
   }
 
   .chatbot-send-btn:disabled {
@@ -1400,9 +1490,26 @@ nav_order: 2
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     min-height: 1.25rem;
     padding: 0;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .chatbot-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 30px;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: var(--chatbot-accent-soft);
+    color: var(--chatbot-accent);
+    border: 1px solid color-mix(in srgb, var(--chatbot-accent) 24%, transparent);
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
   }
 
   .response-time {
@@ -1413,6 +1520,10 @@ nav_order: 2
   .char-count {
     font-size: 0.75rem;
     color: var(--global-text-color-light);
+    border-radius: 999px;
+    padding: 0.25rem 0.45rem;
+    background: color-mix(in srgb, var(--global-divider-color) 48%, transparent);
+    white-space: nowrap;
   }
 
   /* =============================================
@@ -1627,6 +1738,10 @@ nav_order: 2
     .chatbot-input-wrapper {
       max-width: 760px;
     }
+
+    .chatbot-composer-bar {
+      padding-left: 0;
+    }
   }
 
   /* =============================================
@@ -1652,6 +1767,28 @@ nav_order: 2
     .chatbot-send-btn {
       width: 44px;
       height: 44px;
+    }
+
+    .chatbot-footer {
+      padding: 0 0.75rem;
+    }
+
+    .chatbot-input-container {
+      border-radius: 24px;
+      padding: 0.55rem;
+    }
+
+    .chatbot-composer-primary {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .chatbot-composer-icon-btn,
+    .chatbot-mode-pill {
+      display: none;
+    }
+
+    .chatbot-input {
+      padding: 0.55rem 0.35rem 0.2rem;
     }
   }
 </style>
