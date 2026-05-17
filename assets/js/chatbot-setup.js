@@ -586,6 +586,7 @@ function displayMessage(message, sender, questionType = null) {
 
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${sender} message-enter`;
+  const wasNearBottom = isNearBottom();
 
   const timestamp = new Date().toLocaleTimeString();
 
@@ -643,7 +644,7 @@ function displayMessage(message, sender, questionType = null) {
 
   messagesDiv.appendChild(messageDiv);
 
-  if (isNearBottom()) {
+  if (wasNearBottom) {
     scrollToBottom();
   } else {
     const indicator = document.getElementById('new-message-indicator');
@@ -869,7 +870,12 @@ function setLoadingState(loading) {
 function scrollToBottom() {
   const chatContainer = document.getElementById('chat-container');
   if (chatContainer) {
-    chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+    const scroll = () => {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    };
+
+    scroll();
+    requestAnimationFrame(scroll);
   }
 }
 
