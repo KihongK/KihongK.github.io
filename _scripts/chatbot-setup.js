@@ -17,6 +17,7 @@ let isConnected = false;
 let messageStartTime = 0;
 let humanJoinNotified = false;
 let visitorInfo = null;
+let chatSessionId = null;
 let hasSavedChatHistory = false;
 let _pageInitialized = false;
 
@@ -26,8 +27,13 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
 
+  // 페이지 로드(새로고침/하드리로드/재방문)마다 채팅 히스토리 초기화
+  sessionStorage.removeItem('chatHistory');
+  localStorage.removeItem('chatHistory'); // 구버전 localStorage 잔여 데이터 정리
+
   // 방문자 정보 로드
   loadVisitorInfo();
+  loadChatSessionId();
 
   // 입력 필드 실시간 저장 설정
   setupVisitorInfoAutoSave();
@@ -120,6 +126,9 @@ function initSocketConnection() {
     user_name: visitorInfo.name,
     company_name: visitorInfo.company || ''
   };
+  if (chatSessionId) {
+    authInfo.session_id = chatSessionId;
+  }
 
   try {
     socket = io(API_BASE_URL, {
@@ -137,6 +146,12 @@ function initSocketConnection() {
       console.log('Socket.IO connected');
       isSocketConnected = true;
       setConnectionStatus(true, 'socket');
+    });
+
+    socket.on('chat:connected', (data) => {
+      if (data && data.session_id) {
+        saveChatSessionId(data.session_id);
+      }
     });
 
     // 연결 해제
@@ -330,6 +345,15 @@ function loadVisitorInfo() {
     // 폼 필드에 저장된 값 복원
     restoreVisitorInfoToForm();
   }
+}
+
+function loadChatSessionId() {
+  chatSessionId = sessionStorage.getItem('chatSessionId');
+}
+
+function saveChatSessionId(sessionId) {
+  chatSessionId = sessionId;
+  sessionStorage.setItem('chatSessionId', sessionId);
 }
 
 // 폼 필드에 방문자 정보 복원
@@ -548,6 +572,7 @@ async function sendMessageREST(message) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(chatSessionId ? { 'X-Session-ID': chatSessionId } : {}),
       },
       body: JSON.stringify(payload)
     });
@@ -557,6 +582,9 @@ async function sendMessageREST(message) {
     }
 
     const data = await response.json();
+    if (data.session_id) {
+      saveChatSessionId(data.session_id);
+    }
     lastResponseTime = Date.now() - messageStartTime;
 
     hideTyping();
@@ -723,7 +751,7 @@ function showSuggestedQuestions(questions) {
 function saveConversation(message, sender, questionType = null) {
   if (sender === 'error') return; // 에러 메시지는 히스토리에 저장하지 않음
 
-  let conversations = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+  let conversations = JSON.parse(sessionStorage.getItem('chatHistory') || '[]');
   conversations.push({
     message: message,
     sender: sender,
@@ -735,11 +763,11 @@ function saveConversation(message, sender, questionType = null) {
     conversations = conversations.slice(-100);
   }
 
-  localStorage.setItem('chatHistory', JSON.stringify(conversations));
+  sessionStorage.setItem('chatHistory', JSON.stringify(conversations));
 }
 
 function loadChatHistory() {
-  const conversations = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+  const conversations = JSON.parse(sessionStorage.getItem('chatHistory') || '[]');
   if (conversations.length === 0) {
     return false;
   }
@@ -824,9 +852,12 @@ function confirmClearChat() {
     messagesDiv.innerHTML = '';
   }
 
-  localStorage.removeItem('chatHistory');
+  sessionStorage.removeItem('chatHistory');
+  localStorage.removeItem('chatHistory'); // 구버전 localStorage 잔여 데이터 정리
   sessionStorage.removeItem('visitorInfo');
+  sessionStorage.removeItem('chatSessionId');
   visitorInfo = null;
+  chatSessionId = null;
   hasSavedChatHistory = false;
   humanJoinNotified = false;
   disconnectSocketConnection();
